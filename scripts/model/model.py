@@ -15,7 +15,7 @@ np.set_printoptions(suppress=True)
 import time
 
 
-basedir = '/home/ti61/f_mc1689_1/SRActFlow/'
+datadir = '../../../data/'
 
 class RNN(torch.nn.Module):
     """
