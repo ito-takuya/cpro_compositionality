@@ -14,7 +14,7 @@ import model.analysis as analysis
 #import torch.nn.functional as F
 
 
-projectdir = '/home/ti61/f_mc1689_1/SRActFlow/'
+datadir = '../../../data/'
 
 def runModel(num_hidden=1280,learning_rate=0.0001,thresh=0.9,create_new_batches=False,save_csv=False,save_hiddenrsm_pdf=False):
     """
@@ -28,14 +28,12 @@ def runModel(num_hidden=1280,learning_rate=0.0001,thresh=0.9,create_new_batches=
 
 
     if create_new_batches: 
-        TrialInfo = model.TrialBatches(NUM_BATCHES=30000,
-                                       NUM_TASKS_IN_TRAINSET=64,
-                                       NUM_TASK_TYPES_PER_BATCH=64,
-                                       NUM_TESTING_TRIAlS_PER_TASK=100,
-                                       NUM_TRAINING_TRIAlS_PER_TASK=10,
-                                       NUM_INPUT_ELEMENTS=28,
-                                       NUM_OUTPUT_ELEMENTS=4,
-                                       filename=projectdir + 'data/results/MODEL/TrialBatches_Default_NoDynamics_new')
+        TrialInfo = model.TrialBatchesPracticeNovel(NUM_BATCHES=30000,
+                                                    NUM_TRAINING_TRIAlS_PER_TASK=10,
+                                                    NUM_TESTING_TRIAlS_PER_TASK=100,
+                                                    NUM_INPUT_ELEMENTS=28,
+                                                    NUM_OUTPUT_ELEMENTS=4,
+                                                    filename=datadir + 'results/MODEL/TrialBatches_Default_NoDynamics'):
         TrialInfo.createAllBatches(nproc=30)
 
     #### Load training batches

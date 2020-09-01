@@ -17,7 +17,7 @@ import time
 
 datadir = '../../../data/'
 
-class RNN(torch.nn.Module):
+class ANN(torch.nn.Module):
     """
     Neural network object
     """
@@ -214,6 +214,102 @@ def load_testset(cuda=False,filename='/home/ti61/f_mc1689_1/SRActFlow/data/resul
         test_outputs = test_outputs.cuda()
     return test_inputs, test_outputs
 
+class TrialBatchesPracticeNovel(object):
+    """
+    Batch trials, but specifically separate practiced versus novel task sets (4 practiced, 60 novel)
+    """
+    def __init__(self,
+                 NUM_BATCHES=100000,
+                 NUM_TRAINING_TRIAlS_PER_TASK=10,
+                 NUM_TESTING_TRIAlS_PER_TASK=100,
+                 NUM_INPUT_ELEMENTS=28,
+                 NUM_OUTPUT_ELEMENTS=4,
+                 filename='/home/ti61/f_mc1689_1/SRActFlow/data/results/MODEL/TrialBatches_Default_NoDynamics'):
+
+
+        self.NUM_BATCHES = NUM_BATCHES
+        self.NUM_OUTPUT_ELEMENTS = NUM_OUTPUT_ELEMENTS
+        self.NUM_TESTING_TRIAlS_PER_TASK = NUM_TESTING_TRIAlS_PER_TASK
+        self.NUM_TRAINING_TRIAlS_PER_TASK = NUM_TRAINING_TRIAlS_PER_TASK
+        self.NUM_INPUT_ELEMENTS = NUM_INPUT_ELEMENTS
+        self.splitPracticedNovelTaskSets()
+        self.filename = filename
+
+    def createAllBatches(self,nproc=10):
+        # Initialize empty tensor for batches
+        batch_inputtensor = np.zeros((self.NUM_INPUT_ELEMENTS, len(self.practicedRuleSet)*self.NUM_TRAINING_TRIAlS_PER_TASK, self.NUM_BATCHES))
+        batch_outputtensor = np.zeros((self.NUM_OUTPUT_ELEMENTS, len(self.practicedRuleSet)*self.NUM_TRAINING_TRIAlS_PER_TASK, self.NUM_BATCHES))
+
+        inputs = []
+        for batch in range(self.NUM_BATCHES):
+            shuffle = True
+            seed = np.random.randint(1000000)
+            inputs.append((self.practicedRuleSet,self.NUM_TRAINING_TRIAlS_PER_TASK,shuffle,batch,seed))
+
+        pool = mp.Pool(processes=nproc)
+        results = pool.starmap_async(create_trial_batches,inputs).get()
+        pool.close()
+        pool.join()
+
+        batch = 0
+        for result in results:
+            batch_inputtensor[:,:,batch] = result[0]
+            batch_outputtensor[:,:,batch] = result[1]
+            batch += 1
+
+        # Construct test set
+        test_inputs, test_targets = create_trial_batches(self.novelRuleSet,self.NUM_TESTING_TRIAlS_PER_TASK,shuffle,1)
+
+        h5f = h5py.File(self.filename + '.h5','a')
+        try:
+            h5f.create_dataset('training/inputs',data=batch_inputtensor)
+            h5f.create_dataset('training/outputs',data=batch_outputtensor)
+            h5f.create_dataset('test/inputs',data=test_inputs)
+            h5f.create_dataset('test/outputs',data=test_targets)
+        except:
+            del h5f['training/inputs'], h5f['training/outputs'], h5f['test/inputs'], h5f['test/outputs']
+            h5f.create_dataset('training/inputs',data=batch_inputtensor)
+            h5f.create_dataset('training/outputs',data=batch_outputtensor)
+            h5f.create_dataset('test/inputs',data=test_inputs)
+            h5f.create_dataset('test/outputs',data=test_targets)
+        h5f.close()
+
+    def loadTrainingBatches(self):
+        h5f = h5py.File(self.filename + '.h5','r')
+        inputs = h5f['training/inputs'][:].copy()
+        outputs = h5f['training/outputs'][:].copy()
+        h5f.close()
+
+        # Input dimensions: input features, nMiniblocks, nBatches
+        inputs = np.transpose(inputs, (2, 1, 0)) # convert to: nBatches, nMiniblocks, input dimensions
+        outputs = np.transpose(outputs, (2, 1, 0)) # convert to: nBatches, nMiniblocks, input dimensions
+
+        inputs = torch.from_numpy(inputs)
+        outputs = torch.from_numpy(outputs)
+        return inputs, outputs
+    
+    def loadTestset(self):
+        h5f = h5py.File(self.filename + '.h5','r')
+        inputs = h5f['test/inputs'][:].copy()
+        outputs = h5f['test/outputs'][:].copy()
+        h5f.close()
+
+        # Input dimensions: input features, nMiniblocks
+        inputs = np.transpose(inputs, (1, 0)) # convert to: nMiniblocks, input dimensions
+        outputs = np.transpose(outputs, (1, 0)) # convert to:  nMiniblocks, input dimensions
+
+        inputs = torch.from_numpy(inputs)
+        outputs = torch.from_numpy(outputs)
+        return inputs, outputs
+
+    def splitPracticedNovelTaskSets(self):
+        taskRuleSet = task.createRulePermutations()
+        practicedRuleSet, novelRuleSet = task.create4Practiced60NovelTaskContexts(taskRuleSet)
+
+        self.taskRuleSet = taskRuleSet
+        self.practicedRuleSet = practicedRuleSet
+        self.novelRuleSet = novelRuleSet
+
 class TrialBatches(object):
     """
     Batch trials
@@ -221,7 +317,6 @@ class TrialBatches(object):
     def __init__(self,
                  NUM_BATCHES=100000,
                  NUM_TASKS_IN_TRAINSET=63,
-                 NUM_TASK_TYPES_PER_BATCH=63,
                  NUM_TESTING_TRIAlS_PER_TASK=100,
                  NUM_TRAINING_TRIAlS_PER_TASK=1,
                  NUM_INPUT_ELEMENTS=28,
@@ -231,7 +326,6 @@ class TrialBatches(object):
 
         self.NUM_BATCHES = NUM_BATCHES
         self.NUM_TASKS_IN_TRAINSET = NUM_TASKS_IN_TRAINSET
-        self.NUM_TASK_TYPES_PER_BATCH = NUM_TASK_TYPES_PER_BATCH
         self.NUM_OUTPUT_ELEMENTS = NUM_OUTPUT_ELEMENTS
         self.NUM_TESTING_TRIAlS_PER_TASK = NUM_TESTING_TRIAlS_PER_TASK
         self.NUM_TRAINING_TRIAlS_PER_TASK = NUM_TRAINING_TRIAlS_PER_TASK
@@ -241,8 +335,6 @@ class TrialBatches(object):
 
     def createAllBatches(self,nproc=10):
         # Initialize empty tensor for batches
-        num_trials = self.NUM_TASK_TYPES_PER_BATCH 
-        
         batch_inputtensor = np.zeros((self.NUM_INPUT_ELEMENTS, len(self.trainRuleSet)*self.NUM_TRAINING_TRIAlS_PER_TASK, self.NUM_BATCHES))
         batch_outputtensor = np.zeros((self.NUM_OUTPUT_ELEMENTS, len(self.trainRuleSet)*self.NUM_TRAINING_TRIAlS_PER_TASK, self.NUM_BATCHES))
 
