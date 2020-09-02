@@ -6,7 +6,7 @@ import torch
 import numpy as np
 from torch.autograd import Variable
 import torch.nn.functional as F
-import task
+import model.task as task
 import multiprocessing as mp
 import h5py
 from importlib import reload
@@ -39,7 +39,7 @@ class ANN(torch.nn.Module):
         self.cuda = cuda
 
         # Define entwork architectural parameters
-        super(RNN,self).__init__()
+        super(ANN,self).__init__()
 
         self.w_in = torch.nn.Linear(num_sensory_inputs+num_rule_inputs,num_hidden)
         self.w_rec = torch.nn.Linear(num_hidden,num_hidden)
@@ -219,7 +219,7 @@ class TrialBatchesPracticeNovel(object):
     """
     def __init__(self,
                  NUM_BATCHES=10000,
-                 NUM_PRACTICE_TRIAlS_PER_TASK=10,
+                 NUM_PRACTICE_TRIALS_PER_TASK=10,
                  NUM_NOVEL_TRIAlS_PER_TASK=10,
                  NUM_INPUT_ELEMENTS=28,
                  NUM_OUTPUT_ELEMENTS=4,
@@ -229,7 +229,7 @@ class TrialBatchesPracticeNovel(object):
         self.NUM_BATCHES = NUM_BATCHES
         self.NUM_OUTPUT_ELEMENTS = NUM_OUTPUT_ELEMENTS
         self.NUM_NOVEL_TRIAlS_PER_TASK = NUM_NOVEL_TRIAlS_PER_TASK
-        self.NUM_PRACTICE_TRIAlS_PER_TASK = NUM_PRACTICE_TRIAlS_PER_TASK
+        self.NUM_PRACTICE_TRIALS_PER_TASK = NUM_PRACTICE_TRIALS_PER_TASK
         self.NUM_INPUT_ELEMENTS = NUM_INPUT_ELEMENTS
         self.splitPracticedNovelTaskSets()
         self.filename = filename
@@ -239,7 +239,7 @@ class TrialBatchesPracticeNovel(object):
             ntrials = self.NUM_PRACTICE_TRIALS_PER_TASK
             ruleset = self.practicedRuleSet
         elif condition=='novel':
-            ntrials = self.NUM_NOVEL_TRIALS_PER_TASK
+            ntrials = self.NUM_NOVEL_TRIAlS_PER_TASK
             ruleset = self.novelRuleSet
         # Initialize empty tensor for batches
         batch_inputtensor = np.zeros((self.NUM_INPUT_ELEMENTS, len(ruleset)*ntrials, self.NUM_BATCHES))
@@ -285,6 +285,9 @@ class TrialBatchesPracticeNovel(object):
         inputs = torch.from_numpy(inputs)
         outputs = torch.from_numpy(outputs)
 
+        inputs = inputs.float()
+        outputs = outputs.float()
+
         if cuda:
             inputs = inputs.cuda()
             outputs = outputs.cuda()
@@ -311,7 +314,7 @@ def create_trial_batches(taskRuleSet,ntrials_per_task,shuffle,batchNum,seed):
     np.random.seed(seed)
 
     if batchNum%100==0:
-        print('Running batch', batchNum)
+        print('Creating batch', batchNum)
     
     stimuliSet = task.createSensoryInputs()
 
