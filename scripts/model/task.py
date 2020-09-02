@@ -204,8 +204,7 @@ def solveInputs(task_rules, stimuli, printTask=False):
 
 def createTrainTestTaskRules(taskRuleSet,nTrainSet=32,nTestSet=32):
     """
-    Ensure that when we split the task rules, that each set has equal proportions of each task rule
-    For example, if there are 32 training tasks, then we should have 8 examples of each rule
+    Construct partitions of training and test set task contexts
     """
     nRulesPerTrainSet = nTrainSet/4.0
     nRulesPerTestSet = nTestSet/4.0
@@ -249,3 +248,52 @@ def createTrainTestTaskRules(taskRuleSet,nTrainSet=32,nTestSet=32):
     df_train = pd.DataFrame(df_train)
 
     return df_train, df_test
+
+def create4Practiced60NovelTaskContexts(taskRuleSet):
+    """
+    Construct a set of 4 practiced task contexts, where each rule (within each rule domain) is presented exactly once
+    CPRO constructs a task context from 3 unique task rules (a logic, sensory, and motor rule). Thus, across 4 practiced task contexts, exactly 12 unique task rules will be employed.  
+    N.B.: This is the task design in the experimental data
+    """
+    df_prac = pd.DataFrame()
+    df_nov = pd.DataFrame()
+    df_prac = []
+    df_nov = []
+
+    # Identify the unique rule values
+    logic_rules = np.unique(taskRuleSet.Logic.values)
+    sensory_rules = np.unique(taskRuleSet.Sensory.values)
+    motor_rules = np.unique(taskRuleSet.Motor.values)
+
+    prac_ind = []
+    available_tasksets = np.arange(0,64)
+    while len(available_tasksets)>0:
+        i = np.random.choice(available_tasksets,1)[0] # Pick random task context
+        prac_ind.append(i)
+        df_prac.append(taskRuleSet.iloc[i])
+        #available_tasksets = np.delete(available_tasksets,np.where(available_tasksets==i)[0][0]) # delete this task context from available set of tasks
+        # Remove any tasks with those specific task rules
+        logic_ind = np.where(taskRuleSet.Logic.values==str(taskRuleSet.iloc[i].Logic))[0]
+        for ind in logic_ind: 
+            if ind in available_tasksets:
+                available_tasksets = np.delete(available_tasksets,np.where(available_tasksets==ind)[0][0])
+        # sensory
+        sensory_ind = np.where(taskRuleSet.Sensory.values==taskRuleSet.iloc[i].Sensory)[0]
+        for ind in sensory_ind: 
+            if ind in available_tasksets:
+                available_tasksets = np.delete(available_tasksets,np.where(available_tasksets==ind)[0][0])
+        # motor
+        motor_ind = np.where(taskRuleSet.Motor.values==taskRuleSet.iloc[i].Motor)[0]
+        for ind in motor_ind: 
+            if ind in available_tasksets:
+                available_tasksets = np.delete(available_tasksets,np.where(available_tasksets==ind)[0][0])
+
+    ####  Now identify the novel tasks
+    for i in np.arange(64):
+        if i not in prac_ind:
+            df_nov.append(taskRuleSet.iloc[i])
+
+    df_nov = pd.DataFrame(df_nov)
+    df_prac = pd.DataFrame(df_prac)
+
+    return df_prac, df_nov
