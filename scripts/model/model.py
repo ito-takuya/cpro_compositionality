@@ -87,7 +87,6 @@ class ANN(torch.nn.Module):
 
         return outputs, hidden
 
-
 def train(network, inputs, targets):
     """Train network"""
     network.train()
@@ -130,7 +129,7 @@ def batch_training(network,train_inputs,train_outputs,
                                        train_inputs[batch_id,:,:],
                                        train_outputs[batch_id,:,:])
 
-        if batch % 5000 == 0:
+        if batch % 1000 == 0:
             targets = targets.cpu()
             outputs = outputs.cpu()
     
@@ -224,7 +223,7 @@ class TrialBatchesPracticeNovel(object):
                  NUM_NOVEL_TRIAlS_PER_TASK=10,
                  NUM_INPUT_ELEMENTS=28,
                  NUM_OUTPUT_ELEMENTS=4,
-                 filename='/home/ti61/f_mc1689_1/SRActFlow/data/results/MODEL/TrialBatches_Default_NoDynamics'):
+                 filename=datadir + 'results/MODEL/TrialBatches_Default_NoDynamics'):
 
 
         self.NUM_BATCHES = NUM_BATCHES
@@ -273,10 +272,10 @@ class TrialBatchesPracticeNovel(object):
             h5f.create_dataset(condition + '/outputs',data=batch_outputtensor)
         h5f.close()
 
-    def loadTrainingBatches(self):
+    def loadBatches(self,condition='practice',cuda=False):
         h5f = h5py.File(self.filename + '.h5','r')
-        inputs = h5f['training/inputs'][:].copy()
-        outputs = h5f['training/outputs'][:].copy()
+        inputs = h5f[condition + '/inputs'][:].copy()
+        outputs = h5f[condition + '/outputs'][:].copy()
         h5f.close()
 
         # Input dimensions: input features, nMiniblocks, nBatches
@@ -285,22 +284,13 @@ class TrialBatchesPracticeNovel(object):
 
         inputs = torch.from_numpy(inputs)
         outputs = torch.from_numpy(outputs)
+
+        if cuda:
+            inputs = inputs.cuda()
+            outputs = outputs.cuda()
+
         return inputs, outputs
     
-    def loadTestset(self):
-        h5f = h5py.File(self.filename + '.h5','r')
-        inputs = h5f['test/inputs'][:].copy()
-        outputs = h5f['test/outputs'][:].copy()
-        h5f.close()
-
-        # Input dimensions: input features, nMiniblocks
-        inputs = np.transpose(inputs, (1, 0)) # convert to: nMiniblocks, input dimensions
-        outputs = np.transpose(outputs, (1, 0)) # convert to:  nMiniblocks, input dimensions
-
-        inputs = torch.from_numpy(inputs)
-        outputs = torch.from_numpy(outputs)
-        return inputs, outputs
-
     def splitPracticedNovelTaskSets(self):
         taskRuleSet = task.createRulePermutations()
         practicedRuleSet, novelRuleSet = task.create4Practiced60NovelTaskContexts(taskRuleSet)
