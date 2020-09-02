@@ -235,19 +235,22 @@ class TrialBatchesPracticeNovel(object):
         self.splitPracticedNovelTaskSets()
         self.filename = filename
 
-    def createAllBatches(self,nproc=10):
-        # Initialize empty tensor for practiced batches
-        practicebatch_inputtensor = np.zeros((self.NUM_INPUT_ELEMENTS, len(self.practicedRuleSet)*self.NUM_PRACTICE_TRIAlS_PER_TASK, self.NUM_BATCHES))
-        practicebatch_outputtensor = np.zeros((self.NUM_OUTPUT_ELEMENTS, len(self.practicedRuleSet)*self.NUM_PRACTICE_TRIAlS_PER_TASK, self.NUM_BATCHES))
-        # Initialize empty tensor for novel batches
-        practicebatch_inputtensor = np.zeros((self.NUM_INPUT_ELEMENTS, len(self.practicedRuleSet)*self.NUM_PRACTICE_TRIAlS_PER_TASK, self.NUM_BATCHES))
-        practicebatch_outputtensor = np.zeros((self.NUM_OUTPUT_ELEMENTS, len(self.practicedRuleSet)*self.NUM_PRACTICE_TRIAlS_PER_TASK, self.NUM_BATCHES))
+    def createBatches(self,condition='practice',nproc=10):
+        if condition=='practice':
+            ntrials = self.NUM_PRACTICE_TRIALS_PER_TASK
+            ruleset = self.practicedRuleSet
+        elif condition=='novel':
+            ntrials = self.NUM_NOVEL_TRIALS_PER_TASK
+            ruleset = self.novelRuleSet
+        # Initialize empty tensor for batches
+        batch_inputtensor = np.zeros((self.NUM_INPUT_ELEMENTS, len(ruleset)*ntrials, self.NUM_BATCHES))
+        batch_outputtensor = np.zeros((self.NUM_OUTPUT_ELEMENTS, len(ruleset)*ntrials, self.NUM_BATCHES))
 
         inputs = []
         for batch in range(self.NUM_BATCHES):
             shuffle = True
             seed = np.random.randint(1000000)
-            inputs.append((self.practicedRuleSet,self.NUM_PRACTICE_TRIAlS_PER_TASK,shuffle,batch,seed))
+            inputs.append((ruleset,ntrials,shuffle,batch,seed))
 
         pool = mp.Pool(processes=nproc)
         results = pool.starmap_async(create_trial_batches,inputs).get()
@@ -259,38 +262,15 @@ class TrialBatchesPracticeNovel(object):
             batch_inputtensor[:,:,batch] = result[0]
             batch_outputtensor[:,:,batch] = result[1]
             batch += 1
-
-        # Construct novel practiced set
-        inputs = []
-        for batch in range(self.NUM_BATCHES):
-            shuffle = True
-            seed = np.random.randint(1000000)
-            inputs.append((self.novelRuleSet,self.NUM_NOVEL_TRIAlS_PER_TASK,shuffle,batch,seed))
-
-        pool = mp.Pool(processes=nproc)
-        results = pool.starmap_async(create_trial_batches,inputs).get()
-        pool.close()
-        pool.join()
-
-        batch = 0
-        for result in results:
-            batch_inputtensor[:,:,batch] = result[0]
-            batch_outputtensor[:,:,batch] = result[1]
-            batch += 1
-        test_inputs, test_targets = create_trial_batches(self.novelRuleSet,self.NUM_NOVEL_TRIAlS_PER_TASK,shuffle,1)
 
         h5f = h5py.File(self.filename + '.h5','a')
         try:
-            h5f.create_dataset('training/inputs',data=batch_inputtensor)
-            h5f.create_dataset('training/outputs',data=batch_outputtensor)
-            h5f.create_dataset('test/inputs',data=test_inputs)
-            h5f.create_dataset('test/outputs',data=test_targets)
+            h5f.create_dataset(condition + '/inputs',data=batch_inputtensor)
+            h5f.create_dataset(condition + '/outputs',data=batch_outputtensor)
         except:
-            del h5f['training/inputs'], h5f['training/outputs'], h5f['test/inputs'], h5f['test/outputs']
-            h5f.create_dataset('training/inputs',data=batch_inputtensor)
-            h5f.create_dataset('training/outputs',data=batch_outputtensor)
-            h5f.create_dataset('test/inputs',data=test_inputs)
-            h5f.create_dataset('test/outputs',data=test_targets)
+            del h5f[condition + '/inputs'], h5f[condition + '/outputs']
+            h5f.create_dataset(condition + '/inputs',data=batch_inputtensor)
+            h5f.create_dataset(condition + '/outputs',data=batch_outputtensor)
         h5f.close()
 
     def loadTrainingBatches(self):
