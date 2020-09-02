@@ -30,15 +30,15 @@ def runModel(num_hidden=1280,learning_rate=0.0001,thresh=0.9,create_new_batches=
     if create_new_batches: 
         TrialInfo = model.TrialBatchesPracticeNovel(NUM_BATCHES=30000,
                                                     NUM_TRAINING_TRIAlS_PER_TASK=10,
-                                                    NUM_TESTING_TRIAlS_PER_TASK=100,
+                                                    NUM_TESTING_TRIAlS_PER_TASK=10,
                                                     NUM_INPUT_ELEMENTS=28,
                                                     NUM_OUTPUT_ELEMENTS=4,
-                                                    filename=datadir + 'results/MODEL/TrialBatches_Default_NoDynamics'):
+                                                    filename=datadir + 'results/model/TrialBatches_4Prac60Nov'):
         TrialInfo.createAllBatches(nproc=30)
 
     #### Load training batches
     print('Loading training batches')
-    input_batches, output_batches = model.load_training_batches(cuda=False,filename=projectdir + 'data/results/MODEL/TrialBatches_Default_NoDynamics')
+    input_batches, output_batches = model.load_training_batches(cuda=False,filename=projectdir + 'data/results/model/TrialBatches_4Prac60Nov')
 
     Network = model.RNN(num_rule_inputs=12,
                          num_sensory_inputs=16,
@@ -50,7 +50,13 @@ def runModel(num_hidden=1280,learning_rate=0.0001,thresh=0.9,create_new_batches=
     Network = Network.cpu()
 
     #### Train model
-    print('Training model')
+    print('Training model on practiced tasks')
+    timestart = time.time()
+    model.batch_training(Network, input_batches,output_batches,cuda=False)  
+    timeend = time.time()
+    print('Time elapsed using CPU:', timeend-timestart)
+
+    print('Training model on novel tasks')
     timestart = time.time()
     model.batch_training(Network, input_batches,output_batches,cuda=False)  
     timeend = time.time()
