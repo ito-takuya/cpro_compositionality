@@ -10,14 +10,18 @@ import model.model as mod
 import model.task as task
 import time
 import model.analysis as analysis
-#import torch
+from importlib import reload
+mod = reload(mod)
+task = reload(task)
+analysis = reload(analysis)
+import torch
 #from torch.autograd import Variable
 #import torch.nn.functional as F
 
 
 datadir = '../../../data/'
 
-def runModel(datadir=datadir,num_hidden=512,learning_rate=0.0001,thresh=0.9,create_new_batches=False,save_csv=False,save_hiddenrsm_pdf=False,save_model=None):
+def runModel(datadir=datadir,practice=True,num_hidden=512,learning_rate=0.0001,thresh=0.9,create_new_batches=False,save_csv=False,save_hiddenrsm_pdf=False,save_model=None):
     """
     num_hidden - # of hidden units
     learning_rate - learning rate 
@@ -27,18 +31,31 @@ def runModel(datadir=datadir,num_hidden=512,learning_rate=0.0001,thresh=0.9,crea
     save_hiddenrsm_pdf - save out a PDF of the RSM?
     """
 
+    if practice:
+        batchfilename = datadir + 'results/model/TrialBatches_4Prac60Nov'
+    else:
+        batchfilename = datadir + 'results/model/TrialBatches_AllTasks'
 
-    batchfilename = datadir + 'results/model/TrialBatches_4Prac60Nov'
     if create_new_batches: 
         print('Creating new training batches')
-        TrialInfo = mod.TrialBatchesPracticeNovel(NUM_BATCHES=30000,
-                                                  NUM_PRACTICE_TRIALS_PER_TASK=10,
-                                                  NUM_NOVEL_TRIAlS_PER_TASK=10,
-                                                  NUM_INPUT_ELEMENTS=28,
-                                                  NUM_OUTPUT_ELEMENTS=4,
-                                                  filename=batchfilename)
-        TrialInfo.createBatches(condition='practice',nproc=4)
-        TrialInfo.createBatches(condition='novel',nproc=4)
+        if practice:
+            print('Creating separate practice and novel batches')
+            TrialInfo = mod.TrialBatchesPracticeNovel(NUM_BATCHES=30000,
+                                                      NUM_PRACTICE_TRIALS_PER_TASK=10,
+                                                      NUM_NOVEL_TRIAlS_PER_TASK=10,
+                                                      NUM_INPUT_ELEMENTS=28,
+                                                      NUM_OUTPUT_ELEMENTS=4,
+                                                      filename=batchfilename)
+            TrialInfo.createBatches(condition='practice',nproc=4)
+            TrialInfo.createBatches(condition='novel',nproc=4)
+        else:
+            print('Creating batches with full task set')
+            TrialInfo = mod.TrialBatchesTrainAll(NUM_BATCHES=30000,
+                                                 NUM_TRIALS_PER_TASK=10,
+                                                 NUM_INPUT_ELEMENTS=28,
+                                                 NUM_OUTPUT_ELEMENTS=4,
+                                                 filename=batchfilename)
+            TrialInfo.createBatches(nproc=4)
 
     #### ANN construction
     print('Instantiating new model')
@@ -51,27 +68,39 @@ def runModel(datadir=datadir,num_hidden=512,learning_rate=0.0001,thresh=0.9,crea
     # Network.cuda = True
     Network = Network.cpu()
 
-    #### Load training batches
-    print('Loading practice batches')
-    TrialObj = mod.TrialBatchesPracticeNovel(filename=batchfilename)
-    practice_input_batches, practice_output_batches = TrialObj.loadBatches(condition='practice',cuda=False)
-    novel_input_batches, novel_output_batches = TrialObj.loadBatches(condition='novel',cuda=False)
+    if practice:
+        #### Load training batches
+        print('Loading practice and novel batches')
+        TrialObj = mod.TrialBatchesPracticeNovel(filename=batchfilename)
+        practice_input_batches, practice_output_batches = TrialObj.loadBatches(condition='practice',cuda=False)
+        novel_input_batches, novel_output_batches = TrialObj.loadBatches(condition='novel',cuda=False)
 
-    #### Train practice tasks
-    print('Training model on practiced tasks')
-    timestart = time.time()
-    mod.batch_training(Network, practice_input_batches,practice_output_batches,cuda=False)  
-    timeend = time.time()
-    print('Time elapsed using CPU:', timeend-timestart)
+        #### Train practice tasks
+        print('Training model on practiced tasks')
+        timestart = time.time()
+        mod.batch_training(Network, practice_input_batches,practice_output_batches,cuda=False)  
+        timeend = time.time()
+        print('Time elapsed using CPU:', timeend-timestart)
 
-    print('Training model on novel tasks')
-    timestart = time.time()
-    mod.batch_training(Network, novel_input_batches,novel_output_batches,cuda=False)  
-    timeend = time.time()
-    print('Time elapsed using CPU:', timeend-timestart)
+        print('Training model on novel tasks')
+        timestart = time.time()
+        mod.batch_training(Network, novel_input_batches,novel_output_batches,cuda=False)  
+        timeend = time.time()
+        print('Time elapsed using CPU:', timeend-timestart)
+    else:
+        print('Loading batches')
+        TrialObj = mod.TrialBatchesTrainAll(filename=batchfilename)
+        input_batches, output_batches = TrialObj.loadBatches(cuda=False)
+
+        #### Train practice tasks
+        print('Training model on all tasks')
+        timestart = time.time()
+        mod.batch_training(Network, input_batches,output_batches,cuda=False)  
+        timeend = time.time()
+        print('Time elapsed using CPU:', timeend-timestart)
 
     if save_model is not None:
-        torch.save(Network,save_model)
+        torch.save(Network,datadir + save_model)
 
     #### Save out hidden layer RSM
     hidden, rsm = analysis.rsa(Network,show=save_hiddenrsm_pdf,savepdf=save_hiddenrsm_pdf)
