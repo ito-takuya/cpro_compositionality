@@ -6,7 +6,7 @@ import torch
 import numpy as np
 from torch.autograd import Variable
 import torch.nn.functional as F
-import task
+import model.task as task
 import multiprocessing as mp
 import h5py
 from importlib import reload
@@ -14,81 +14,81 @@ task = reload(task)
 import time
 import matplotlib.pyplot as plt
 import seaborn as sns
+import model.model as mod
 
 
-basedir = '/home/ti61/f_mc1689_1/SRActFlow/'
+basedir = '../../../data/'
 
 
 
-def rsa(network,show=True, savepdf=False):
+def rsa_pracnov(network,batchfilename='../../data/results/model/TrialBatches_4Prac60Nov',measure='corr'):
     """
     For each input element, inject a single element representing each rule/stimulus
     Observe the representational space
     """
-    # ordering of the task rules, 1-12
-    rule_order = ['BOTH', 'NOTBOTH', 'EITHER', 'NEITHER', 'RED', 'VERTICAL', 'HIGH', 'CONSTANT', 'LMID', 'LIND', 'RIND', 'RMID']
-    # ordering of stim input nodes, 12-28
-    stim_order = ['RED1', 'BLUE1', 'VERTICAL1', 'HORIZONTAL1', 'HIGH1', 'LOW1', 'CONSTANT1', 'BEEPING1', 'RED2', 'BLUE2', 'VERTICAL2', 'HORIZONTAL2', 'HIGH2', 'LOW2', 'CONSTANT2', 'BEEPING2']
 
-    # combined rule and input element order label array
-    input_order = np.hstack((np.asarray(rule_order), np.asarray(stim_order)))
+    #batchfilename = datadir + 'results/model/TrialBatches_4Prac60Nov'
 
-    # These are the representations we want to compare to fMRI data
-    rsa_inputs = ['BOTH', 'NOTBOTH', 'EITHER', 'NEITHER', 
-                  'RED', 'VERTICAL', 'HIGH', 'CONSTANT', 
-                  'LMID', 'LIND', 'RIND', 'RMID',
-                  'RED1 RED2', 'RED1 BLUE2', 'BLUE1 RED2', 'BLUE1 BLUE2',
-                  'VERTICAL1 VERTICAL2','VERTICAL1 HORIZONTAL2', 'HORIZONTAL1 VERTICAL2', 'HORIZONTAL1 HORIZONTAL2',
-                  'HIGH1 HIGH2', 'HIGH1 LOW2', 'LOW1 HIGH2', 'LOW1 LOW2',
-                  'CONSTANT1 CONSTANT2', 'CONSTANT1 BEEPING2', 'BEEPING1 CONSTANT2', 'BEEPING1 BEEPING2']
+    print('Loading practice and novel batches')
+    TrialObj = mod.TrialBatchesPracticeNovel(filename=batchfilename)
+    #practice_input_batches, practice_output_batches = TrialObj.loadBatches(condition='practice',cuda=False) # batches x trials x input elements
+    #novel_input_batches, novel_output_batches = TrialObj.loadBatches(condition='novel',cuda=False)
+    prac_ruleset = pd.read_csv(batchfilename + '_practice.csv')
+    nov_ruleset = pd.read_csv(batchfilename + '_novel.csv')
 
+    prac_ruleset_arr = prac_ruleset.Code.apply(lambda x: x[1:-1].split(',')).values
+    nov_ruleset_arr = nov_ruleset.Code.apply(lambda x: x[1:-1].split(',')).values
+
+    #### Set input matrix parameters
     rule_ind = np.arange(network.num_rule_inputs) # rules are the first 12 indices of input vector
     stim_ind = np.arange(network.num_rule_inputs, network.num_rule_inputs+network.num_sensory_inputs)
     input_size = len(rule_ind) + len(stim_ind)
-    input_matrix = np.zeros((input_size,input_size)) # Activation for each input element separately
+    input_matrix = np.zeros((len(prac_ruleset)+len(nov_ruleset),input_size)) # Activation for each input element separately
 
+    
+    #### Now fill input matrix
+    # For loop is inefficient, but allows for consistent structuring of rule permutations
+    taskRuleSets = task.createRulePermutations()
+    taskcount = 0
+    for logic in np.unique(taskRuleSets.Logic):
+        logic_ind = prac_ruleset.Logic==logic
+        for sensory in np.unique(taskRuleSets.Sensory):
+            sensory_ind = prac_ruleset.Sensory==sensory
+            for motor in np.unique(taskRuleSets.Motor):
+                motor_ind = prac_ruleset.Motor==motor
+                # View tasks in order; if task exists in practice set, include the input code
+                ind = np.where(np.multiply(np.multiply(logic_ind.values,sensory_ind.values),motor_ind.values))[0]
+                if len(ind)>0:
+                    input_matrix[taskcount,rule_ind] = np.asarray(prac_ruleset_arr[ind][0][0].split(' '),dtype=float) 
+                    taskcount += 1
 
-    input_col = 0
-    for element in rsa_inputs:
-        # First evaluate if it's a rule
-        if input_col < len(rule_ind):
-            # Find where the elements are ordered
-            input_element = np.where(input_order==element)[0]
-            input_matrix[input_element,input_col] = 1.0
-        else:
-            # Otherwise, this is a stimulus pairing
-            tmp_stims = element.split() # Split by space (stimuli are separated by a space) 
-            for stim in tmp_stims:
-                input_element = np.where(input_order==stim)[0]
-                input_matrix[input_element,input_col] = 1.0
-
-        # Go to next input
-        input_col += 1
+    # Now fill in task rules for 'novel' tasks 
+    for logic in np.unique(taskRuleSets.Logic):
+        logic_ind = nov_ruleset.Logic==logic
+        for sensory in np.unique(taskRuleSets.Sensory):
+            sensory_ind = nov_ruleset.Sensory==sensory
+            for motor in np.unique(taskRuleSets.Motor):
+                motor_ind = nov_ruleset.Motor==motor
+                # View tasks in order; if task exists in novel set, include the input code
+                ind = np.where(np.multiply(np.multiply(logic_ind.values,sensory_ind.values),motor_ind.values))[0]
+                if len(ind)>0:
+                    input_matrix[taskcount,rule_ind] = np.asarray(nov_ruleset_arr[ind][0][0].split(' '),dtype=float) 
+                    taskcount += 1
 
     input_matrix = torch.from_numpy(input_matrix).float()
     # Now run a forward pass for all activations
     outputs, hidden = network.forward(input_matrix,noise=False)
 
-
     ## Now plot RSM
     hidden = hidden.detach().numpy()
     
-    rsm = np.corrcoef(hidden)
-    np.fill_diagonal(rsm,0)
-
-    if show:
-        plt.figure(figsize=(12,12))
-        plt.title('Representational similarity matrix\nof hidden units',fontsize=28)
-        ax = sns.heatmap(rsm,square=True,center=0,cmap='bwr', cbar=True,cbar_kws={'fraction':0.046})
-        plt.xlabel('Rule + Stimulus representations',fontsize=20)
-        plt.ylabel('Rule + Stimulus representations',fontsize=20)
-        plt.xticks(np.arange(0.5, len(rsa_inputs)+1), rsa_inputs, rotation=90,fontsize=14)
-        plt.yticks(np.arange(0.5, len(rsa_inputs)+1), rsa_inputs, rotation=0, fontsize=14)
-        plt.tight_layout()
-        ax.invert_yaxis()
-        if savepdf:
-            plt.savefig('ANN_RSM.pdf')
+    if measure=='corr':
+        rsm = np.corrcoef(hidden)
+        np.fill_diagonal(rsm,0)
+    if measure=='cov':
+        rsm = np.cov(hidden)
 
     return hidden, rsm
+
     
 

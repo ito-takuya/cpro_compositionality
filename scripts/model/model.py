@@ -114,6 +114,8 @@ def batch_training(network,train_inputs,train_outputs,
 
     np.random.shuffle(batch_ordering)
 
+    nsamples_viewed = 0
+    nbatches_trained = 0
     timestart = time.time()
     for batch in np.arange(train_inputs.shape[0]):
         batch_id = batch_ordering[batch]
@@ -130,6 +132,8 @@ def batch_training(network,train_inputs,train_outputs,
                                        train_outputs[batch_id,:,:])
 
 
+        nbatches_trained += 1
+        nsamples_viewed += train_inputs.shape[0]
         #acc = [] # accuracy array
         #for mb in range(targets.shape[0]):
         #    for out in range(targets.shape[1]):
@@ -143,7 +147,7 @@ def batch_training(network,train_inputs,train_outputs,
         #        else:
         #            acc.append(0)
 
-        nbatches_break = 100
+        nbatches_break = 500
         if batch % nbatches_break == 0:
             targets = targets.cpu()
             outputs = outputs.cpu()
@@ -175,6 +179,8 @@ def batch_training(network,train_inputs,train_outputs,
                 if np.mean(np.asarray(acc))*100.0>85.0:
                     print('Last batch had', np.mean(acc)*100.0, '> above 85.0% accuracy... stopping training')
                     break
+
+    return nsamples_viewed, nbatches_trained
 
 
 def eval(network,test_inputs,targets,cuda=False):
@@ -278,12 +284,12 @@ class TrialBatchesPracticeNovel(object):
             batch_outputtensor[:,:,batch] = result[1]
             batch += 1
 
+        ruleset.to_csv(self.filename + '_' + condition + '.csv')
         h5f = h5py.File(self.filename + '.h5','a')
         try:
             h5f.create_dataset(condition + '/inputs',data=batch_inputtensor)
             h5f.create_dataset(condition + '/outputs',data=batch_outputtensor)
         except:
-            del h5f[condition + '/inputs'], h5f[condition + '/outputs']
             h5f.create_dataset(condition + '/inputs',data=batch_inputtensor)
             h5f.create_dataset(condition + '/outputs',data=batch_outputtensor)
         h5f.close()
@@ -361,6 +367,7 @@ class TrialBatchesTrainAll(object):
             batch_outputtensor[:,:,batch] = result[1]
             batch += 1
 
+        ruleset.to_csv(self.filename + '.csv')
         h5f = h5py.File(self.filename + '.h5','a')
         try:
             h5f.create_dataset('inputs',data=batch_inputtensor)
