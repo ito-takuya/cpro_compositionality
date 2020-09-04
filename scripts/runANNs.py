@@ -21,7 +21,9 @@ import torch
 
 datadir = '../../../data/'
 
-def runModel(datadir=datadir,practice=True,num_hidden=512,learning_rate=0.0001,thresh=0.9,create_new_batches=False,save_csv=False,save_hiddenrsm_pdf=False,save_model=None):
+def runModel(datadir=datadir,practice=True,
+             num_hidden=512,learning_rate=0.0001,thresh=0.9,
+             create_new_batches=False,save_csv=False,save_hiddenrsm_pdf=False,save_model=None,verbose=True):
     """
     num_hidden - # of hidden units
     learning_rate - learning rate 
@@ -58,7 +60,7 @@ def runModel(datadir=datadir,practice=True,num_hidden=512,learning_rate=0.0001,t
             TrialInfo.createBatches(nproc=4)
 
     #### ANN construction
-    print('Instantiating new model')
+    if verbose: print('Instantiating new model')
     Network = mod.ANN(num_rule_inputs=12,
                          num_sensory_inputs=16,
                          num_hidden=num_hidden,
@@ -70,36 +72,38 @@ def runModel(datadir=datadir,practice=True,num_hidden=512,learning_rate=0.0001,t
 
     if practice:
         #### Load training batches
-        print('Loading practice and novel batches')
+        if verbose: print('Loading practice and novel batches')
         TrialObj = mod.TrialBatchesPracticeNovel(filename=batchfilename)
         practice_input_batches, practice_output_batches = TrialObj.loadBatches(condition='practice',cuda=False)
         novel_input_batches, novel_output_batches = TrialObj.loadBatches(condition='novel',cuda=False)
 
         #### Train practice tasks
-        print('Training model on practiced tasks')
+        if verbose: print('Training model on practiced tasks')
         timestart = time.time()
-        nsamples_viewed1, nbatches_trained1 = mod.batch_training(Network, practice_input_batches,practice_output_batches,cuda=False)  
+        nsamples_viewed1, nbatches_trained1 = mod.batch_training(Network, practice_input_batches,practice_output_batches,cuda=False,verbose=verbose)  
         timeend = time.time()
-        print('Time elapsed using CPU:', timeend-timestart)
+        if verbose: print('Time elapsed using CPU:', timeend-timestart)
 
-        print('Training model on novel tasks')
+        if verbose: print('Training model on novel tasks')
         timestart = time.time()
-        nsamples_viewed2, nbatches_trained2 = mod.batch_training(Network, novel_input_batches,novel_output_batches,cuda=False)  
+        nsamples_viewed2, nbatches_trained2 = mod.batch_training(Network, novel_input_batches,novel_output_batches,cuda=False,verbose=False)  
         timeend = time.time()
-        print('Time elapsed using CPU:', timeend-timestart)
-        print('Total number of batches =', nbatches_trained1 + nbatches_trained2)
-        print('Total number of samples viewed =', nsamples_viewed1 + nsamples_viewed2)
+        nsamples_viewed = nsamples_viewed1 + nsamples_viewed2
+        nbatches_trained = nbatches_trained1 + nbatches_trained2
+        if verbose: print('Time elapsed using CPU:', timeend-timestart)
+        if verbose: print('Total number of batches =', nbatches_trained)
+        if verbose: print('Total number of samples viewed =', nsamples_viewed)
     else:
-        print('Loading batches')
+        if verbose: print('Loading batches')
         TrialObj = mod.TrialBatchesTrainAll(filename=batchfilename)
         input_batches, output_batches = TrialObj.loadBatches(cuda=False)
 
         #### Train practice tasks
-        print('Training model on all tasks')
+        if verbose: print('Training model on all tasks')
         timestart = time.time()
-        nsamples_viewed, nbatches_trained = mod.batch_training(Network, input_batches,output_batches,cuda=False)  
+        nsamples_viewed, nbatches_trained = mod.batch_training(Network, input_batches,output_batches,cuda=False,verbose=False)  
         timeend = time.time()
-        print('Time elapsed using CPU:', timeend-timestart)
+        if verbose: print('Time elapsed using CPU:', timeend-timestart)
         print('Total number of batches =', nbatches_trained)
         print('Total number of samples viewed =', nsamples_viewed)
 
@@ -115,4 +119,4 @@ def runModel(datadir=datadir,practice=True,num_hidden=512,learning_rate=0.0001,t
     #if save_csv:
     #    np.savetxt('ANN1280_HiddenLayerRSM_NoDynamics.csv',rsm)
 
-    return Network
+    return Network, nsamples_viewed, nbatches_trained
