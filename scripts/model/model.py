@@ -6,7 +6,7 @@ import torch
 import numpy as np
 from torch.autograd import Variable
 import torch.nn.functional as F
-import task
+import model.task as task
 import multiprocessing as mp
 import h5py
 from importlib import reload
@@ -39,7 +39,7 @@ class ANN(torch.nn.Module):
         self.cuda = cuda
 
         # Define entwork architectural parameters
-        super(RNN,self).__init__()
+        super(ANN,self).__init__()
 
         self.w_in = torch.nn.Linear(num_sensory_inputs+num_rule_inputs,num_hidden)
         self.w_rec = torch.nn.Linear(num_hidden,num_hidden)
@@ -51,7 +51,7 @@ class ANN(torch.nn.Module):
         self.units = torch.nn.Parameter(self.initHidden())
 
         # Define loss function
-        self.lossfunc = torch.nn.MSELoss(reduce=False)
+        self.lossfunc = torch.nn.MSELoss(reduction='none')
 
         # Decision threshhold for behavior
         self.thresh = thresh
@@ -114,6 +114,8 @@ def batch_training(network,train_inputs,train_outputs,
 
     np.random.shuffle(batch_ordering)
 
+    nsamples_viewed = 0
+    nbatches_trained = 0
     timestart = time.time()
     for batch in np.arange(train_inputs.shape[0]):
         batch_id = batch_ordering[batch]
@@ -129,7 +131,24 @@ def batch_training(network,train_inputs,train_outputs,
                                        train_inputs[batch_id,:,:],
                                        train_outputs[batch_id,:,:])
 
-        if batch % 1000 == 0:
+
+        nbatches_trained += 1
+        nsamples_viewed += train_inputs.shape[0]
+        #acc = [] # accuracy array
+        #for mb in range(targets.shape[0]):
+        #    for out in range(targets.shape[1]):
+        #        if targets[mb,out] == 0: continue
+        #        response = outputs[mb,out] # Identify response time points
+        #        thresh = network.thresh # decision thresh
+        #        target_resp = torch.ByteTensor([out]) # The correct target response
+        #        max_resp = outputs[mb,:].argmax().byte()
+        #        if max_resp==target_resp and response>thresh: # Make sure network response is correct respnose, and that it exceeds some threshold
+        #            acc.append(1.0)
+        #        else:
+        #            acc.append(0)
+
+        nbatches_break = 500
+        if batch % nbatches_break == 0:
             targets = targets.cpu()
             outputs = outputs.cpu()
     
@@ -146,6 +165,8 @@ def batch_training(network,train_inputs,train_outputs,
                     else:
                         acc.append(0)
 
+            accuracy_per_batch.append(np.mean(acc)*100.0)
+
             timeend = time.time()
             print('Iteration:', batch)
             print('\tloss:', loss.item())
@@ -153,13 +174,14 @@ def batch_training(network,train_inputs,train_outputs,
             timestart = timeend
             print('\tAccuracy: ', str(round(np.mean(acc)*100.0,4)),'%')
         
-            nbatches_break = 1000
             if batch>nbatches_break:
-                if np.sum(np.asarray(accuracy_per_batch[-nbatches_break:])>99.0)==nbatches_break:
-                    print('Last', nbatches_break, 'batches had above 99.5% accuracy... stopping training')
+                #if np.mean(np.asarray(accuracy_per_batch[-nbatches_break:]))>85.0:
+                if np.mean(np.asarray(acc))*100.0>85.0:
+                    print('Last batch had', np.mean(acc)*100.0, '> above 85.0% accuracy... stopping training')
                     break
 
-        accuracy_per_batch.append(np.mean(acc)*100.0)
+    return nsamples_viewed, nbatches_trained
+
 
 def eval(network,test_inputs,targets,cuda=False):
     network.eval()
@@ -219,7 +241,7 @@ class TrialBatchesPracticeNovel(object):
     """
     def __init__(self,
                  NUM_BATCHES=10000,
-                 NUM_PRACTICE_TRIAlS_PER_TASK=10,
+                 NUM_PRACTICE_TRIALS_PER_TASK=10,
                  NUM_NOVEL_TRIAlS_PER_TASK=10,
                  NUM_INPUT_ELEMENTS=28,
                  NUM_OUTPUT_ELEMENTS=4,
@@ -229,7 +251,7 @@ class TrialBatchesPracticeNovel(object):
         self.NUM_BATCHES = NUM_BATCHES
         self.NUM_OUTPUT_ELEMENTS = NUM_OUTPUT_ELEMENTS
         self.NUM_NOVEL_TRIAlS_PER_TASK = NUM_NOVEL_TRIAlS_PER_TASK
-        self.NUM_PRACTICE_TRIAlS_PER_TASK = NUM_PRACTICE_TRIAlS_PER_TASK
+        self.NUM_PRACTICE_TRIALS_PER_TASK = NUM_PRACTICE_TRIALS_PER_TASK
         self.NUM_INPUT_ELEMENTS = NUM_INPUT_ELEMENTS
         self.splitPracticedNovelTaskSets()
         self.filename = filename
@@ -239,7 +261,7 @@ class TrialBatchesPracticeNovel(object):
             ntrials = self.NUM_PRACTICE_TRIALS_PER_TASK
             ruleset = self.practicedRuleSet
         elif condition=='novel':
-            ntrials = self.NUM_NOVEL_TRIALS_PER_TASK
+            ntrials = self.NUM_NOVEL_TRIAlS_PER_TASK
             ruleset = self.novelRuleSet
         # Initialize empty tensor for batches
         batch_inputtensor = np.zeros((self.NUM_INPUT_ELEMENTS, len(ruleset)*ntrials, self.NUM_BATCHES))
@@ -262,12 +284,12 @@ class TrialBatchesPracticeNovel(object):
             batch_outputtensor[:,:,batch] = result[1]
             batch += 1
 
+        ruleset.to_csv(self.filename + '_' + condition + '.csv')
         h5f = h5py.File(self.filename + '.h5','a')
         try:
             h5f.create_dataset(condition + '/inputs',data=batch_inputtensor)
             h5f.create_dataset(condition + '/outputs',data=batch_outputtensor)
         except:
-            del h5f[condition + '/inputs'], h5f[condition + '/outputs']
             h5f.create_dataset(condition + '/inputs',data=batch_inputtensor)
             h5f.create_dataset(condition + '/outputs',data=batch_outputtensor)
         h5f.close()
@@ -285,6 +307,9 @@ class TrialBatchesPracticeNovel(object):
         inputs = torch.from_numpy(inputs)
         outputs = torch.from_numpy(outputs)
 
+        inputs = inputs.float()
+        outputs = outputs.float()
+
         if cuda:
             inputs = inputs.cuda()
             outputs = outputs.cuda()
@@ -299,6 +324,82 @@ class TrialBatchesPracticeNovel(object):
         self.practicedRuleSet = practicedRuleSet
         self.novelRuleSet = novelRuleSet
 
+class TrialBatchesTrainAll(object):
+    """
+    Batch trials, but specifically separate practiced versus novel task sets (4 practiced, 60 novel)
+    """
+    def __init__(self,
+                 NUM_BATCHES=10000,
+                 NUM_TRIALS_PER_TASK=10,
+                 NUM_INPUT_ELEMENTS=28,
+                 NUM_OUTPUT_ELEMENTS=4,
+                 filename=datadir + 'results/MODEL/TrialBatches_Default_NoDynamics'):
+
+
+        self.NUM_BATCHES = NUM_BATCHES
+        self.NUM_OUTPUT_ELEMENTS = NUM_OUTPUT_ELEMENTS
+        self.NUM_TRIALS_PER_TASK = NUM_TRIALS_PER_TASK
+        self.NUM_INPUT_ELEMENTS = NUM_INPUT_ELEMENTS
+        self.taskRuleSet = task.createRulePermutations()
+        self.filename = filename
+
+    def createBatches(self,nproc=10):
+        ntrials = self.NUM_TRIALS_PER_TASK
+        ruleset = self.taskRuleSet
+        # Initialize empty tensor for batches
+        batch_inputtensor = np.zeros((self.NUM_INPUT_ELEMENTS, len(ruleset)*ntrials, self.NUM_BATCHES))
+        batch_outputtensor = np.zeros((self.NUM_OUTPUT_ELEMENTS, len(ruleset)*ntrials, self.NUM_BATCHES))
+
+        inputs = []
+        for batch in range(self.NUM_BATCHES):
+            shuffle = True
+            seed = np.random.randint(1000000)
+            inputs.append((ruleset,ntrials,shuffle,batch,seed))
+
+        pool = mp.Pool(processes=nproc)
+        results = pool.starmap_async(create_trial_batches,inputs).get()
+        pool.close()
+        pool.join()
+
+        batch = 0
+        for result in results:
+            batch_inputtensor[:,:,batch] = result[0]
+            batch_outputtensor[:,:,batch] = result[1]
+            batch += 1
+
+        ruleset.to_csv(self.filename + '.csv')
+        h5f = h5py.File(self.filename + '.h5','a')
+        try:
+            h5f.create_dataset('inputs',data=batch_inputtensor)
+            h5f.create_dataset('outputs',data=batch_outputtensor)
+        except:
+            del h5f['inputs'], h5f['outputs']
+            h5f.create_dataset('inputs',data=batch_inputtensor)
+            h5f.create_dataset('outputs',data=batch_outputtensor)
+        h5f.close()
+
+    def loadBatches(self,cuda=False):
+        h5f = h5py.File(self.filename + '.h5','r')
+        inputs = h5f['inputs'][:].copy()
+        outputs = h5f['outputs'][:].copy()
+        h5f.close()
+
+        # Input dimensions: input features, nMiniblocks, nBatches
+        inputs = np.transpose(inputs, (2, 1, 0)) # convert to: nBatches, nMiniblocks, input dimensions
+        outputs = np.transpose(outputs, (2, 1, 0)) # convert to: nBatches, nMiniblocks, input dimensions
+
+        inputs = torch.from_numpy(inputs)
+        outputs = torch.from_numpy(outputs)
+
+        inputs = inputs.float()
+        outputs = outputs.float()
+
+        if cuda:
+            inputs = inputs.cuda()
+            outputs = outputs.cuda()
+
+        return inputs, outputs
+    
 def create_trial_batches(taskRuleSet,ntrials_per_task,shuffle,batchNum,seed):
     """
     Randomly generates a set of stimuli (nStimuli) for each task rule
@@ -311,7 +412,7 @@ def create_trial_batches(taskRuleSet,ntrials_per_task,shuffle,batchNum,seed):
     np.random.seed(seed)
 
     if batchNum%100==0:
-        print('Running batch', batchNum)
+        print('Creating batch', batchNum)
     
     stimuliSet = task.createSensoryInputs()
 
