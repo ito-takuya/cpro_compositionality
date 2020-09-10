@@ -111,6 +111,13 @@ def behaviorOfTaskSimilarity(subjlist, firstOnly=False):
         #### Identify practiced tasks
         prac_ind = np.where(df['Novelty'].values=='Prac')[0]
         prac_tasks = np.unique(df['TaskNum'].values[prac_ind])
+        # Use only first miniblock of all practiced tasks
+        if firstOnly:
+            ind1 = []
+            for i in prac_tasks:
+                ind = np.where(df['TaskNum'].values==i)[0][:3] # first miniblock (3 trials)
+                ind1.extend(ind)
+            prac_ind = np.asarray(ind1)
         logic_rule = []
         sensory_rule = []
         motor_rule = []
