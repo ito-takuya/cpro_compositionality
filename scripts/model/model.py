@@ -28,7 +28,7 @@ class ANN(torch.nn.Module):
                  num_hidden=128,
                  num_motor_decision_outputs=4,
                  learning_rate=0.0001,
-                 thresh=0.8,
+                 thresh=0.9,
                  cuda=False):
 
         # Define general parameters
@@ -105,8 +105,8 @@ def train(network, inputs, targets):
 
     return outputs, targets, loss
 
-def batch_training(network,train_inputs,train_outputs,
-                     cuda=False):
+def batch_training(network,train_inputs,train_outputs,acc_cutoff=80.0,
+                     cuda=False,verbose=True):
 
     accuracy_per_batch = []
 
@@ -147,37 +147,27 @@ def batch_training(network,train_inputs,train_outputs,
         #        else:
         #            acc.append(0)
 
-        nbatches_break = 500
+        nbatches_break = 100
         if batch % nbatches_break == 0:
             targets = targets.cpu()
             outputs = outputs.cpu()
     
-            acc = [] # accuracy array
-            for mb in range(targets.shape[0]):
-                for out in range(targets.shape[1]):
-                    if targets[mb,out] == 0: continue
-                    response = outputs[mb,out] # Identify response time points
-                    thresh = network.thresh # decision thresh
-                    target_resp = torch.ByteTensor([out]) # The correct target response
-                    max_resp = outputs[mb,:].argmax().byte()
-                    if max_resp==target_resp and response>thresh: # Make sure network response is correct respnose, and that it exceeds some threshold
-                        acc.append(1.0)
-                    else:
-                        acc.append(0)
+            acc = accuracyScore(network,outputs,targets)
 
             accuracy_per_batch.append(np.mean(acc)*100.0)
 
-            timeend = time.time()
-            print('Iteration:', batch)
-            print('\tloss:', loss.item())
-            print('Time elapsed...', timeend-timestart)
-            timestart = timeend
-            print('\tAccuracy: ', str(round(np.mean(acc)*100.0,4)),'%')
+            if verbose:
+                timeend = time.time()
+                print('Iteration:', batch)
+                print('\tloss:', loss.item())
+                print('Time elapsed...', timeend-timestart)
+                timestart = timeend
+                print('\tAccuracy: ', str(round(np.mean(acc)*100.0,4)),'%')
         
             if batch>nbatches_break:
-                #if np.mean(np.asarray(accuracy_per_batch[-nbatches_break:]))>85.0:
-                if np.mean(np.asarray(acc))*100.0>85.0:
-                    print('Last batch had', np.mean(acc)*100.0, '> above 85.0% accuracy... stopping training')
+                #if np.mean(np.asarray(accuracy_per_batch[-nbatches_break:]))>75.0:
+                if np.mean(np.asarray(acc))*100.0>acc_cutoff:
+                    if verbose: print('Last batch had', np.mean(acc)*100.0, '> above', acc_cutoff, '80.0% accuracy... stopping training')
                     break
 
     return nsamples_viewed, nbatches_trained
@@ -195,18 +185,7 @@ def eval(network,test_inputs,targets,cuda=False):
     loss = torch.mean(loss)
 
 
-    acc = [] # accuracy array
-    for mb in range(targets.shape[0]):
-        for out in range(targets.shape[1]):
-            if targets[mb,out] == 0: continue
-            response = outputs[mb,out] # Identify response time points
-            thresh = network.thresh # decision thresh
-            target_resp = torch.ByteTensor([out]) # The correct target response
-            max_resp = outputs[mb,:].argmax().byte()
-            if max_resp==target_resp and response>thresh: # Make sure network response is correct respnose, and that it exceeds some threshold
-                acc.append(1.0)
-            else:
-                acc.append(0)
+    acc = accuracyScore(network,outputs,targets) 
 
     print('\tloss:', loss.item())
     print('\tAccuracy: ',str(round(np.mean(acc)*100.0,4)),'%')
@@ -263,6 +242,9 @@ class TrialBatchesPracticeNovel(object):
         elif condition=='novel':
             ntrials = self.NUM_NOVEL_TRIAlS_PER_TASK
             ruleset = self.novelRuleSet
+        elif condition=='all':
+            ntrials = self.NUM_NOVEL_TRIAlS_PER_TASK
+            ruleset = self.taskRuleSet
         # Initialize empty tensor for batches
         batch_inputtensor = np.zeros((self.NUM_INPUT_ELEMENTS, len(ruleset)*ntrials, self.NUM_BATCHES))
         batch_outputtensor = np.zeros((self.NUM_OUTPUT_ELEMENTS, len(ruleset)*ntrials, self.NUM_BATCHES))
@@ -290,6 +272,7 @@ class TrialBatchesPracticeNovel(object):
             h5f.create_dataset(condition + '/inputs',data=batch_inputtensor)
             h5f.create_dataset(condition + '/outputs',data=batch_outputtensor)
         except:
+            del h5f[condition + '/inputs'], h5f[condition + '/outputs']
             h5f.create_dataset(condition + '/inputs',data=batch_inputtensor)
             h5f.create_dataset(condition + '/outputs',data=batch_outputtensor)
         h5f.close()
@@ -323,6 +306,31 @@ class TrialBatchesPracticeNovel(object):
         self.taskRuleSet = taskRuleSet
         self.practicedRuleSet = practicedRuleSet
         self.novelRuleSet = novelRuleSet
+
+    def taskSimilarity(self,practicedSet, novelSet):
+        practicedSet = practicedSet.reset_index()
+        novelSet = novelSet.reset_index()
+        task_similarity_arr = np.ones((len(novelSet),))
+        for i in range(len(novelSet)):
+            log = novelSet.Logic[i]
+            sen = novelSet.Sensory[i]
+            mot = novelSet.Motor[i]
+            for j in range(len(practicedSet)):
+                if log == practicedSet.Logic[j] and sen == practicedSet.Sensory[j]:
+                    task_similarity_arr[i] = 2
+                if log == practicedSet.Logic[j] and mot == practicedSet.Motor[j]:
+                    task_similarity_arr[i] = 2
+                if sen == practicedSet.Sensory[j] and mot == practicedSet.Motor[j]:
+                    task_similarity_arr[i] = 2
+                    
+        sim1_ind = np.where(task_similarity_arr==1)[0]
+        sim2_ind = np.where(task_similarity_arr==2)[0]
+
+        taskSim1Set = novelSet.iloc[sim1_ind]
+        taskSim2Set = novelSet.iloc[sim2_ind]
+
+        return taskSim1Set, taskSim2Set
+	    
 
 class TrialBatchesTrainAll(object):
     """
@@ -465,4 +473,23 @@ def create_trial_batches(taskRuleSet,ntrials_per_task,shuffle,batchNum,seed):
         output_matrix = output_matrix[:,ind]
         
     return input_matrix, output_matrix 
+
+def accuracyScore(network,outputs,targets):
+    """
+    return accuracy given a set of outputs and targets
+    """
+    acc = [] # accuracy array
+    for mb in range(targets.shape[0]):
+        for out in range(targets.shape[1]):
+            if targets[mb,out] == 0: continue
+            response = outputs[mb,out] # Identify response time points
+            thresh = network.thresh # decision thresh
+            target_resp = torch.ByteTensor([out]) # The correct target response
+            max_resp = outputs[mb,:].argmax().byte()
+            if max_resp==target_resp and response>thresh: # Make sure network response is correct respnose, and that it exceeds some threshold
+                acc.append(1.0)
+            else:
+                acc.append(0)
+
+    return acc
 

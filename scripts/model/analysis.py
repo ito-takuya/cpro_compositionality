@@ -84,7 +84,7 @@ def rsa_pracnov(network,batchfilename='../../data/results/model/TrialBatches_4Pr
     
     if measure=='corr':
         rsm = np.corrcoef(hidden)
-        np.fill_diagonal(rsm,0)
+        #np.fill_diagonal(rsm,0)
     if measure=='cov':
         rsm = np.cov(hidden)
 
