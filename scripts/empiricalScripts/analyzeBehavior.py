@@ -4,24 +4,23 @@ import scipy.stats as stats
 
 datadir = '../../../data/fMRI_BehavData/'
 
-subjNums = ['013','014','016','017','018','021','023','024','025','026','027','028','030','031','032','033','034','035','037','038','039','040','041','042','043','045','046','047','048','049','050','053','055','056','057','058','062','063','064','066','067','068','069','070','072','074','075','076','077','081','082','085','086','087','088','090','092','093','094','095','097','098','099','101','102','103','104','105','106','108','109','110','111','112','114','115','117','118','119','120','121','122','123','124','125','126','127','128','129','130','131','132','134','135','136','137','138','139','140','141']
-
 keyValues = {'Logic':'LogicCue[LogLevel5]', 'Sensory':'SemanticCue[LogLevel5]', 'Motor':'ResponseCue[LogLevel5]','Accuracy':'Feedback[LogLevel6]', 'Novelty':'TaskType_rec', 'TaskNum':'TaskName[LogLevel5]',
              'PracTask1':'PracTaskA','PracTask2':'PracTaskB','PracTask3':'PracTaskC', 'PracTask4':'PracTaskD','PracTaskIntro':'PracIntroExampleList',
              'LogicExample':'LogicCue[SubTrial]','SensoryExample':'SemanticCue[SubTrial]','MotorExample':'ResponseCue[SubTrial]',
              'PracIntroAccuracy':'Feedback[LogLevel5]'}
 
-def behaviorOfNovelty(subjlist):
+def behaviorOfNovelty(subjNums,behavior='Accuracy'):
     prac_acc = []
     nov_acc = []
     df_acc = {}
-    df_acc['Accuracy'] = []
+    df_acc[behavior] = []
     df_acc['Condition'] = []
     df_acc['Subject'] = []
     for subj in subjNums:
 
         df = pd.read_csv(datadir + subj + '_behavdata_reformatted.csv')
-
+        zeroRT_ind = np.where(df.RT.values==0)[0]
+        df.RT.values[zeroRT_ind] = np.nan
 
         intro_tasks = np.unique(df['TaskNum'].values[1:9])
     #     print('Subject', subj, intro_tasks)
@@ -40,18 +39,27 @@ def behaviorOfNovelty(subjlist):
         prac_ind1 = np.asarray(prac_ind1)
         prac_ind2 = np.asarray(prac_ind2)
         # calculate accuracy for practiced tasks (all)
-        acc = np.mean(df['Accuracy'].values[prac_ind]=='Correct')
-        df_acc['Accuracy'].append(acc)
+        if behavior=='Accuracy':
+            acc = np.nanmean(df[behavior].values[prac_ind]=='Correct')
+        if behavior=='RT':
+            acc = np.nanmean(df[behavior].values[prac_ind])
+        df_acc[behavior].append(acc)
         df_acc['Subject'].append(subj)
         df_acc['Condition'].append('Practiced')
         # calculate accuracy for 1st set of practiced tasks
-        acc = np.mean(df['Accuracy'].values[prac_ind1]=='Correct')
-        df_acc['Accuracy'].append(acc)
+        if behavior=='Accuracy':
+            acc = np.nanmean(df[behavior].values[prac_ind1]=='Correct')
+        if behavior=='RT':
+            acc = np.nanmean(df[behavior].values[prac_ind1])
+        df_acc[behavior].append(acc)
         df_acc['Subject'].append(subj)
         df_acc['Condition'].append('1st Practiced')
         # calculate accuracy for 2nd set of practiced tasks
-        acc = np.mean(df['Accuracy'].values[prac_ind2]=='Correct')
-        df_acc['Accuracy'].append(acc)
+        if behavior=='Accuracy':
+            acc = np.nanmean(df[behavior].values[prac_ind2]=='Correct')
+        if behavior=='RT':
+            acc = np.nanmean(df[behavior].values[prac_ind2])
+        df_acc[behavior].append(acc)
         df_acc['Subject'].append(subj)
         df_acc['Condition'].append('2nd Practiced')
         
@@ -70,18 +78,27 @@ def behaviorOfNovelty(subjlist):
         nov_ind1 = np.asarray(nov_ind1)
         nov_ind2 = np.asarray(nov_ind2)
         # Calculate accuracy for all novel tasks
-        acc = np.mean(df['Accuracy'].values[nov_ind]=='Correct')
-        df_acc['Accuracy'].append(acc)
+        if behavior=='Accuracy':
+            acc = np.nanmean(df[behavior].values[nov_ind]=='Correct')
+        if behavior=='RT':
+            acc = np.nanmean(df[behavior].values[nov_ind])
+        df_acc[behavior].append(acc)
         df_acc['Subject'].append(subj)
         df_acc['Condition'].append('Novel')
         # Calculate accuracy for 1st set of novel tasks
-        acc = np.mean(df['Accuracy'].values[nov_ind1]=='Correct')
-        df_acc['Accuracy'].append(acc)
+        if behavior=='Accuracy':
+            acc = np.nanmean(df[behavior].values[nov_ind1]=='Correct')
+        if behavior=='RT':
+            acc = np.nanmean(df[behavior].values[nov_ind1])
+        df_acc[behavior].append(acc)
         df_acc['Subject'].append(subj)
         df_acc['Condition'].append('1st Novel')
         # Calculate accuracy for 2nd set of novel tasks
-        acc = np.mean(df['Accuracy'].values[nov_ind2]=='Correct')
-        df_acc['Accuracy'].append(acc)
+        if behavior=='Accuracy':
+            acc = np.nanmean(df[behavior].values[nov_ind2]=='Correct')
+        if behavior=='RT':
+            acc = np.nanmean(df[behavior].values[nov_ind2])
+        df_acc[behavior].append(acc)
         df_acc['Subject'].append(subj)
         df_acc['Condition'].append('2nd Novel')
 
@@ -90,7 +107,7 @@ def behaviorOfNovelty(subjlist):
     df_acc = pd.DataFrame(df_acc)
     return df_acc
 
-def behaviorOfTaskSimilarity(subjlist, firstOnly=False):
+def behaviorOfTaskSimilarity(subjNums, firstOnly=False, behavior='Accuracy'):
     """
     Returns a dataframe with the behavioral performance of trials based on task similarity
     Conditions: Practiced tasks, tasks with 2-rules that are similar, tasks with 3-rules that are similar
@@ -100,12 +117,14 @@ def behaviorOfTaskSimilarity(subjlist, firstOnly=False):
     prac_acc = []
     nov_acc = []
     df_acc = {}
-    df_acc['Accuracy'] = []
+    df_acc[behavior] = []
     df_acc['Condition'] = []
     df_acc['Subject'] = []
     for subj in subjNums:
 
         df = pd.read_csv(datadir + subj + '_behavdata_reformatted.csv')
+        zeroRT_ind = np.where(df.RT.values==0)[0]
+        df.RT.values[zeroRT_ind] = np.nan
         # Exclude the pre-run practice trials
         df.TaskNum.values[:9] = np.nan
         #### Identify practiced tasks
@@ -154,8 +173,11 @@ def behaviorOfTaskSimilarity(subjlist, firstOnly=False):
             noveltaskcount += 1
             
         #### Identify practiced tasks
-        acc = np.mean(df['Accuracy'].values[prac_ind]=='Correct')
-        df_acc['Accuracy'].append(acc)
+        if behavior=='Accuracy':
+            acc = np.nanmean(df[behavior].values[prac_ind]=='Correct')
+        if behavior=='RT':
+            acc = np.nanmean(df[behavior].values[prac_ind])
+        df_acc[behavior].append(acc)
         df_acc['Subject'].append(subj)
         df_acc['Condition'].append('Practiced')
         
@@ -167,10 +189,13 @@ def behaviorOfTaskSimilarity(subjlist, firstOnly=False):
                 ind = np.where(df.TaskNum.values==novel_tasks[task])[0][:3] # important bc similarity indices are obtained on novel tasks only
             else:
                 ind = np.where(df.TaskNum.values==novel_tasks[task])[0][:] # use all trials
-            accs.extend(df.Accuracy.values[ind])
+            accs.extend(df[behavior].values[ind])
         accs = np.asarray(accs)
-        acc = np.mean(accs=='Correct') 
-        df_acc['Accuracy'].append(acc)
+        if behavior=='Accuracy':
+            acc = np.nanmean(accs=='Correct') 
+        if behavior=='RT':
+            acc = np.nanmean(accs) 
+        df_acc[behavior].append(acc)
         df_acc['Subject'].append(subj)
         df_acc['Condition'].append('2-rule similarity')
 
@@ -181,13 +206,132 @@ def behaviorOfTaskSimilarity(subjlist, firstOnly=False):
                 ind = np.where(df.TaskNum.values==novel_tasks[task])[0][:3] # important bc similarity indices are obtained on novel tasks only
             else:
                 ind = np.where(df.TaskNum.values==novel_tasks[task])[0][:] # use all trials
-            accs.extend(df.Accuracy.values[ind])
+            accs.extend(df[behavior].values[ind])
         accs = np.asarray(accs)
-        acc = np.mean(accs=='Correct') 
-        df_acc['Accuracy'].append(acc)
+        if behavior=='Accuracy':
+            acc = np.nanmean(accs=='Correct') 
+        if behavior=='RT':
+            acc = np.nanmean(accs) 
+        df_acc[behavior].append(acc)
         df_acc['Subject'].append(subj)
         df_acc['Condition'].append('1-rule similarity')
         
+    df_acc = pd.DataFrame(df_acc)
+
+    return  df_acc
+
+def behaviorAcrossRuleInstances(subjNums, behavior='Accuracy'):
+    """
+    Returns a dataframe with the behavioral performance of trials based on task similarity
+    Conditions: Practiced tasks, tasks with 2-rules that are similar, tasks with 3-rules that are similar
+
+    firstOnly : If True, only analyze the behavior of the first presentation of task rule sets
+    """
+    nov_acc = []
+    df_acc = {}
+    df_acc[behavior] = []
+    df_acc['Condition'] = []
+    df_acc['Subject'] = []
+    df_acc['Rule'] = []
+    df_acc['Block'] = []
+    df_acc['RuleInstance'] = []
+    for subj in subjNums:
+
+        #### Load data and remove 0 RT scores
+        df = pd.read_csv(datadir + subj + '_behavdata_reformatted.csv')
+        zeroRT_ind = np.where(df.RT.values==0)[0]
+        df.RT.values[zeroRT_ind] = np.nan
+
+        # Exclude the pre-run practice trials
+        df.TaskNum.values[:9] = np.nan
+        
+        log_rules = np.unique(df.Logic.values[9:]) # exclude the nans
+        sen_rules = np.unique(df.Sensory.values[9:])
+        mot_rules = np.unique(df.Motor.values[9:])
+        df.Logic.values[:9] = np.nan
+        df.Sensory.values[:9] = np.nan
+        df.Motor.values[:9] = np.nan
+
+        firstblock_ind = []
+        secondblock_ind = []
+        for i in np.unique(df.TaskNum.values[9:]):
+            ind = np.where(df.TaskNum.values==i)[0]
+            firstblock_ind.extend(ind[:3]) # novel tasks have 2 blocks 3 trials each
+            secondblock_ind.extend(ind[3:]) 
+
+
+        for rule in log_rules:
+            inds = np.where(df.Logic.values==rule)[0]
+            # There are 6 trials of each rule (1st and 2nd blocks, 3 trials each) -- indicate whether it's the first block
+            instance = 1
+            i = 0
+            while i < len(inds):
+                ind = inds[np.arange(i,i+3)] # group trials associated with a miniblock together (3 trials/miniblock)
+                if behavior=='Accuracy':
+                    df_acc[behavior].append(np.mean(df[behavior].values[ind]=='Correct'))
+                if behavior=='RT':
+                    df_acc[behavior].append(np.nanmean(df[behavior].values[ind]))
+                df_acc['Rule'].append(rule)
+                df_acc['Subject'].append(subj)
+                df_acc['Condition'].append(df.Novelty.values[ind[0]])
+                if ind[0] in firstblock_ind:
+                    df_acc['Block'].append(1)
+                    df_acc['RuleInstance'].append(instance)
+                if ind[0] in secondblock_ind:
+                    df_acc['Block'].append(2)
+                    df_acc['RuleInstance'].append(instance)
+                i += 3
+                instance+=1
+
+        for rule in sen_rules:
+            inds = np.where(df.Sensory.values==rule)[0]
+            # There are 6 trials of each rule (1st and 2nd blocks, 3 trials each) -- indicate whether it's the first block
+            instance = 1
+            i = 0
+            while i < len(inds):
+                ind = inds[np.arange(i,i+3)] # group trials associated with a miniblock together (3 trials/miniblock)
+                if behavior=='Accuracy':
+                    df_acc[behavior].append(np.mean(df[behavior].values[ind]=='Correct'))
+                if behavior=='RT':
+                    df_acc[behavior].append(np.nanmean(df[behavior].values[ind]))
+                df_acc['Rule'].append(rule)
+                df_acc['Subject'].append(subj)
+                df_acc['Condition'].append(df.Novelty.values[ind[0]])
+                if ind[0] in firstblock_ind:
+                    df_acc['Block'].append(1)
+                    df_acc['RuleInstance'].append(instance)
+                if ind[0] in secondblock_ind:
+                    df_acc['Block'].append(2)
+                    df_acc['RuleInstance'].append(instance)
+                i += 3
+                instance+=1
+
+        for rule in mot_rules:
+            inds = np.where(df.Motor.values==rule)[0]
+            # There are 6 trials of each rule (1st and 2nd blocks, 3 trials each) -- indicate whether it's the first block
+            instance = 1
+            i = 0
+            while i < len(inds):
+                ind = inds[np.arange(i,i+3)] # group trials associated with a miniblock together (3 trials/miniblock)
+                if behavior=='Accuracy':
+                    df_acc[behavior].append(np.mean(df[behavior].values[ind]=='Correct'))
+                if behavior=='RT':
+                    df_acc[behavior].append(np.nanmean(df[behavior].values[ind]))
+                df_acc['Rule'].append(rule)
+                df_acc['Subject'].append(subj)
+                df_acc['Condition'].append(df.Novelty.values[ind[0]])
+                if ind[0] in firstblock_ind:
+                    df_acc['Block'].append(1)
+                    df_acc['RuleInstance'].append(instance)
+                if ind[0] in secondblock_ind:
+                    df_acc['Block'].append(2)
+                    df_acc['RuleInstance'].append(instance)
+                i += 3
+                instance+=1
+
+    for key in df_acc:
+        print(key, len(df_acc[key]))
+    print(np.sum(np.asarray(df_acc['Block'])==1),np.sum(np.asarray(df_acc['Block'])==2))
     df_acc = pd.DataFrame(df_acc)
 
     return  df_acc
