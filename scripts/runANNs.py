@@ -21,147 +21,17 @@ import torch
 
 datadir = '../../../data/'
 
-def runModel(datadir=datadir,practice=True,
-             num_hidden=512,learning_rate=0.0001,thresh=0.9,
-             create_new_batches=False,save_csv=False,save_hiddenrsm_pdf=False,save_model=None,verbose=True):
-    """
-    num_hidden - # of hidden units
-    learning_rate - learning rate 
-    thresh - threshold for classifying output units
-    create_new_batches - Create new training batches. Most likely not necessary; training batches already exist in data directory
-    save_csv - Save out the RSM?
-    save_hiddenrsm_pdf - save out a PDF of the RSM?
-    """
-
-    if practice:
-        batchfilename = datadir + 'results/model/TrialBatches_4Prac60Nov'
-    else:
-        batchfilename = datadir + 'results/model/TrialBatches_AllTasks'
-
-    if create_new_batches: 
-        print('Creating new training batches')
-        if practice:
-            print('Creating separate practice and novel batches')
-            TrialInfo = mod.TrialBatchesPracticeNovel(NUM_BATCHES=5000,
-                                                      NUM_PRACTICE_TRIALS_PER_TASK=100,
-                                                      NUM_NOVEL_TRIAlS_PER_TASK=100,
-                                                      NUM_INPUT_ELEMENTS=28,
-                                                      NUM_OUTPUT_ELEMENTS=4,
-                                                      filename=batchfilename)
-            TrialInfo.createBatches(condition='practice',nproc=4)
-            TrialInfo.createBatches(condition='novel',nproc=4)
-            TrialInfo.createBatches(condition='all',nproc=4)
-        else:
-            print('Creating batches with full task set')
-            TrialInfo = mod.TrialBatchesTrainAll(NUM_BATCHES=5000,
-                                                 NUM_TRIALS_PER_TASK=10,
-                                                 NUM_INPUT_ELEMENTS=28,
-                                                 NUM_OUTPUT_ELEMENTS=4,
-                                                 filename=batchfilename)
-            TrialInfo.createBatches(nproc=4)
-
-    #### ANN construction
-    if verbose: print('Instantiating new model')
-    Network = mod.ANN(num_rule_inputs=12,
-                         num_sensory_inputs=16,
-                         num_hidden=num_hidden,
-                         num_motor_decision_outputs=4,
-                         learning_rate=learning_rate,
-                         thresh=thresh)
-    # Network.cuda = True
-    Network = Network.cpu()
-
-    if practice:
-        #### Load training batches
-        if verbose: print('Loading practice and (all tasks) batches')
-        TrialObj = mod.TrialBatchesPracticeNovel(filename=batchfilename)
-        practice_input_batches, practice_output_batches = TrialObj.loadBatches(condition='practice',cuda=False)
-        novel_input_batches, novel_output_batches = TrialObj.loadBatches(condition='novel',cuda=False)
-        #novel_input_batches, novel_output_batches = TrialObj.loadBatches(condition='all',cuda=False)
-
-        #### Train practice tasks
-        if verbose: print('Training model on practiced tasks')
-        timestart = time.time()
-        nsamples_viewed1, nbatches_trained1 = mod.batch_training(Network, practice_input_batches,practice_output_batches,acc_cutoff=80.0,cuda=False,verbose=verbose)  
-        timeend = time.time()
-        if verbose: print('Time elapsed using CPU:', timeend-timestart)
-
-        if verbose: print('Training model on novel (and practiced) tasks')
-        timestart = time.time()
-        nsamples_viewed2, nbatches_trained2 = mod.batch_training(Network, novel_input_batches,novel_output_batches,acc_cutoff=60.0,cuda=False,verbose=False)  
-        timeend = time.time()
-        nsamples_viewed = nsamples_viewed1 + nsamples_viewed2
-        nbatches_trained = nbatches_trained1 + nbatches_trained2
-        if verbose: print('Time elapsed using CPU:', timeend-timestart)
-        print('Total number of batches =', nbatches_trained)
-        print('Total number of samples viewed =', nsamples_viewed)
-    else:
-        if verbose: print('Loading batches')
-        TrialObj = mod.TrialBatchesTrainAll(filename=batchfilename)
-        input_batches, output_batches = TrialObj.loadBatches(cuda=False)
-
-        #### Train practice tasks
-        if verbose: print('Training model on all tasks')
-        timestart = time.time()
-        nsamples_viewed, nbatches_trained = mod.batch_training(Network, input_batches,output_batches,cuda=False,verbose=False)  
-        timeend = time.time()
-        if verbose: print('Time elapsed using CPU:', timeend-timestart)
-        print('Total number of batches =', nbatches_trained)
-        print('Total number of samples viewed =', nsamples_viewed)
-
-    if save_model is not None:
-        torch.save(Network,datadir + 'results/model/' + save_model)
-
-    #### Save out hidden layer RSM
-    #hidden, rsm = analysis.rsa(Network,show=save_hiddenrsm_pdf,savepdf=save_hiddenrsm_pdf)
-    ## hidden = hidden.detach().numpy()
-    ## input_matrix = input_matrix.detach().numpy()
-
-    ## Save out RSM 
-    #if save_csv:
-    #    np.savetxt('ANN1280_HiddenLayerRSM_NoDynamics.csv',rsm)
-
-    return Network, TrialObj, nsamples_viewed, nbatches_trained
-
-def runOnlineModel(datadir=datadir,practice=True,
-             num_hidden=512,learning_rate=0.0001,thresh=0.9,
-             create_new_batches=False,save_csv=False,save_hiddenrsm_pdf=False,save_model=None,verbose=True):
+def runModel(experiment, datadir=datadir,practice=True,learning='online',
+             num_hidden=128,learning_rate=0.0001,thresh=0.5,acc_cutoff=95.0,
+             save_csv=False,save_hiddenrsm_pdf=False,save_model=None,verbose=True):
     """
     'online training model'
     num_hidden - # of hidden units
     learning_rate - learning rate 
     thresh - threshold for classifying output units
-    create_new_batches - Create new training batches. Most likely not necessary; training batches already exist in data directory
     save_csv - Save out the RSM?
     save_hiddenrsm_pdf - save out a PDF of the RSM?
     """
-
-    if practice:
-        batchfilename = datadir + 'results/model/TrialBatches_4Prac60Nov'
-    else:
-        batchfilename = datadir + 'results/model/TrialBatches_AllTasks'
-
-    if create_new_batches: 
-        print('Creating new training batches')
-        if practice:
-            print('Creating separate practice and novel batches')
-            TrialInfo = mod.TrialBatchesPracticeNovel(NUM_BATCHES=5000,
-                                                      NUM_PRACTICE_TRIALS_PER_TASK=100,
-                                                      NUM_NOVEL_TRIAlS_PER_TASK=100,
-                                                      NUM_INPUT_ELEMENTS=28,
-                                                      NUM_OUTPUT_ELEMENTS=4,
-                                                      filename=batchfilename)
-            TrialInfo.createBatches(condition='practice',nproc=4)
-            TrialInfo.createBatches(condition='novel',nproc=4)
-            TrialInfo.createBatches(condition='all',nproc=4)
-        else:
-            print('Creating batches with full task set')
-            TrialInfo = mod.TrialBatchesTrainAll(NUM_BATCHES=5000,
-                                                 NUM_TRIALS_PER_TASK=10,
-                                                 NUM_INPUT_ELEMENTS=28,
-                                                 NUM_OUTPUT_ELEMENTS=4,
-                                                 filename=batchfilename)
-            TrialInfo.createBatches(nproc=4)
 
     #### ANN construction
     if verbose: print('Instantiating new model')
@@ -177,47 +47,80 @@ def runOnlineModel(datadir=datadir,practice=True,
     if practice:
         #### Load training batches
         if verbose: print('Loading practice and (all tasks) batches')
-        TrialObj = mod.TrialBatchesPracticeNovel(filename=batchfilename)
-        practice_input_batches, practice_output_batches = TrialObj.loadBatches(condition='practice',cuda=False)
-        #novel_input_batches, novel_output_batches = TrialObj.loadBatches(condition='novel',cuda=False)
-        novel_input_batches, novel_output_batches = TrialObj.loadBatches(condition='all',cuda=False)
-        print(novel_input_batches.shape)
-        print(novel_output_batches.shape)
+        practice_input_batches = experiment.practice_input_batches
+        practice_output_batches = experiment.practice_output_batches
 
-        #### Train practice tasks
-        if verbose: print('Online training model on practiced tasks')
-        timestart = time.time()
-        #nsamples_viewed1, nbatches_trained1 = mod.batch_training(Network, practice_input_batches,practice_output_batches,acc_cutoff=80.0,cuda=False,verbose=verbose)  
-        
-        for nbatc
-        outputs, targets, loss = train(network,
-                                       train_inputs[batch_id,:,:],
-                                       train_outputs[batch_id,:,:])
-        timeend = time.time()
-        if verbose: print('Time elapsed using CPU:', timeend-timestart)
+        #### train practiced tasks 
+        ntrials_viewed, nbatches_trained1 = mod.task_training(Network,practice_input_batches,practice_output_batches,acc_cutoff=acc_cutoff,cuda=False,verbose=verbose)  
 
-        if verbose: print('Training model on novel (and practiced) tasks')
-        timestart = time.time()
-        nsamples_viewed2, nbatches_trained2 = mod.batch_training(Network, novel_input_batches,novel_output_batches,acc_cutoff=60.0,cuda=False,verbose=False)  
-        timeend = time.time()
-        nsamples_viewed = nsamples_viewed1 + nsamples_viewed2
-        nbatches_trained = nbatches_trained1 + nbatches_trained2
-        if verbose: print('Time elapsed using CPU:', timeend-timestart)
-        print('Total number of batches =', nbatches_trained)
-        print('Total number of samples viewed =', nsamples_viewed)
-    else:
-        if verbose: print('Loading batches')
-        TrialObj = mod.TrialBatchesTrainAll(filename=batchfilename)
-        input_batches, output_batches = TrialObj.loadBatches(cuda=False)
+        ####
+        if learning=='online':
+            online_inputs = experiment.online_input_batches # task x stim x input
+            online_outputs = experiment.online_output_batches # task x stim x output
+            n_tasks = online_inputs.shape[0]
+            n_stims = online_inputs.shape[1]
+            count = 1
+            accuracy = 0
+            while accuracy*100.0 < acc_cutoff:
+                acc = []
+                for task in range(n_tasks):
+                    stim = np.random.randint(n_stims) # pick a random stimulus set to pair with this task
+                    outputs, targets, loss = mod.train(Network,
+                                                       online_inputs[task,stim,:],
+                                                       online_outputs[task,stim,:])
+                    #### Now score output
+                    for out in range(len(targets)):
+                        if targets[out] == 0: continue
+                        response = outputs[out] # Identify response time points
+                        target_resp = torch.ByteTensor([out]) # The correct target response
+                        max_resp = outputs.argmax().byte()
+                        if max_resp==target_resp and response>thresh: # Make sure network response is correct respnose, and that it exceeds some threshold
+                            acc.append(1.0)
+                        else:
+                            acc.append(0)
 
-        #### Train practice tasks
-        if verbose: print('Training model on all tasks')
-        timestart = time.time()
-        nsamples_viewed, nbatches_trained = mod.batch_training(Network, input_batches,output_batches,cuda=False,verbose=False)  
-        timeend = time.time()
-        if verbose: print('Time elapsed using CPU:', timeend-timestart)
-        print('Total number of batches =', nbatches_trained)
-        print('Total number of samples viewed =', nsamples_viewed)
+                    ntrials_viewed += 1
+                
+                accuracy = np.mean(acc)
+                if verbose and count%50==0:
+                    print('Batch', count, 'achieved', accuracy*100.0,'%')
+
+                count += 1
+
+                if accuracy*100.0>acc_cutoff: 
+                    if verbose: print('Achieved', accuracy*100.0, '%, greater than', acc_cutoff, '% threshold -  exiting training after', count, 'batches') 
+                
+                #if count >2: break
+
+        if learning=='batch':
+
+            input_trials = experiment.online_input_batches # task x stim x input
+            output_trials = experiment.online_output_batches # task x stim x output
+            n_tasks = input_trials.shape[0]
+            n_stims = input_trials.shape[1]
+            stim_ind = np.arange(n_stims)
+            np.random.shuffle(stim_ind)
+            i = 0
+            accuracy = 0
+            batch = 0 
+            while accuracy < acc_cutoff:
+                stim = stim_ind[i]
+                outputs, targets, loss = mod.train(Network,
+                                                   input_trials[:,stim,:],
+                                                   output_trials[:,stim,:])
+
+                accuracy = np.mean(mod.accuracyScore(Network,outputs,targets)) * 100.0
+
+                if verbose:
+                    print('Batch', batch, 'achieved', accuracy,'%')
+
+                i += 1
+                if i >= n_stims:
+                    i = 0 
+                    np.random.shuffle(stim_ind)
+
+                ntrials_viewed += n_tasks
+                batch += 1
 
     if save_model is not None:
         torch.save(Network,datadir + 'results/model/' + save_model)
@@ -231,4 +134,5 @@ def runOnlineModel(datadir=datadir,practice=True,
     #if save_csv:
     #    np.savetxt('ANN1280_HiddenLayerRSM_NoDynamics.csv',rsm)
 
-    return Network, TrialObj, nsamples_viewed, nbatches_trained
+    return Network, ntrials_viewed
+
