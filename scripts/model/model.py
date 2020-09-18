@@ -44,8 +44,11 @@ class ANN(torch.nn.Module):
         self.w_in = torch.nn.Linear(num_sensory_inputs+num_rule_inputs,num_hidden)
         self.w_rec = torch.nn.Linear(num_hidden,num_hidden)
         self.w_out = torch.nn.Linear(num_hidden,num_motor_decision_outputs)
-        self.sigmoid = torch.nn.Sigmoid()
+        self.func_out = torch.nn.Softmax()
         self.func = torch.nn.ReLU()
+
+        self.dropout_in = torch.nn.Dropout(p=0.2)
+        self.dropout_rec = torch.nn.Dropout(p=0.5)
 
         # Initialize RNN units
         self.units = torch.nn.Parameter(self.initHidden())
@@ -66,12 +69,13 @@ class ANN(torch.nn.Module):
     def initHidden(self):
         return torch.randn(1, self.num_hidden)
 
-    def forward(self,inputs,noise=False):
+    def forward(self,inputs,noise=False,dropout=True):
         """
         Run a forward pass of a trial by input_elements matrix
         """
         # Map inputs into RNN space
         rnn_input = self.w_in(inputs) 
+        if dropout: rnn_input = self.dropout_in(rnn_input)
         rnn_input = self.func(rnn_input)
         # Define rnn private noise/spont_act
         if noise:
@@ -81,11 +85,12 @@ class ANN(torch.nn.Module):
 
         # Run RNN
         hidden = self.w_rec(rnn_input)
+        if dropout: hidden = self.dropout_rec(hidden)
         hidden = self.func(hidden)
         
         # Compute outputs
         h2o = self.w_out(hidden) # Generate linear outupts
-        outputs = self.sigmoid(h2o) # Pass through nonlinearity
+        outputs = self.func_out(h2o) # Pass through nonlinearity
 
         return outputs, hidden
 
