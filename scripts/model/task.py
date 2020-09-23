@@ -580,3 +580,68 @@ def create4Practiced60NovelTaskContexts(taskRuleSet):
     df_prac = pd.DataFrame(df_prac)
 
     return df_prac, df_nov
+
+
+def createMotorRulePrimitives(task_rules, stimuli, printTask=False):
+    """
+    Solves CPRO task given a set of inputs and a task rule
+    """
+    logicRules = {0: 'both',
+                  1: 'notboth',
+                  2: 'either',
+                  3: 'neither'}
+    sensoryRules = {4: 'red',
+                    5: 'vertical',
+                    6: 'high',
+                    7: 'constant'}
+    motorRules = {8: 'l_mid',
+                  9: 'l_ind',
+                  10: 'r_ind',
+                  11: 'r_mid'}
+    
+    
+    taskrules = {}
+    taskrules['Logic'] = []
+    taskrules['Sensory'] = []
+    taskrules['Motor'] = []
+    # Create another field for the sensory category (to select stimuli from)
+    taskrules['SensoryCategory'] = []
+    # For RNN training
+    taskrules['Code'] = []
+    
+    for mo in motorRules:
+        code = np.zeros((12,))
+        # Logic rule
+        taskrules['Logic'].append(None)
+        
+        # Sensory rule
+        taskrules['Sensory'].append(None)
+        # Define sensory category
+        taskrules['SensoryCategory'].append(None)
+        
+        # Motor rule
+        taskrules['Motor'].append(motorRules[mo])
+        code[mo] = 1
+        
+        taskrules['Code'].append(list(code))
+
+    # Apply logic gating to motor rules
+    if motorRule=='l_mid':
+        motorOutput = 'l_mid'
+
+    if motorRule=='l_ind':
+        motorOutput = 'l_ind'
+
+    if motorRule=='r_mid':
+        motorOutput = 'r_mid'
+
+    if motorRule=='r_ind':
+        motorOutput = 'r_ind'
+
+    outputcode = np.zeros((4,))
+    if motorOutput=='l_mid': outputcode[0] = 1
+    if motorOutput=='l_ind': outputcode[1] = 1
+    if motorOutput=='r_mid': outputcode[2] = 1
+    if motorOutput=='r_ind': outputcode[3] = 1
+
+    return motorOutput, outputcode

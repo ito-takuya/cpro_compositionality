@@ -21,8 +21,9 @@ import torch
 
 datadir = '../../../data/'
 
+
 def runModel(experiment, datadir=datadir,practice=True,learning='online',
-             num_hidden=128,learning_rate=0.0001,thresh=0.5,acc_cutoff=95.0,
+             num_hidden=512,learning_rate=0.01,thresh=0.0,acc_cutoff=90.0,
              save_csv=False,save_hiddenrsm_pdf=False,save_model=None,verbose=True):
     """
     'online training model'
@@ -53,13 +54,14 @@ def runModel(experiment, datadir=datadir,practice=True,learning='online',
         #### train practiced tasks 
         ntrials_viewed, nbatches_trained1 = mod.task_training(Network,practice_input_batches,practice_output_batches,acc_cutoff=acc_cutoff,cuda=False,verbose=verbose)  
 
+        online_accuracy = []
         ####
         if learning=='online':
             online_inputs = experiment.online_input_batches # task x stim x input
             online_outputs = experiment.online_output_batches # task x stim x output
             n_tasks = online_inputs.shape[0]
             n_stims = online_inputs.shape[1]
-            count = 1
+            count = 0
             accuracy = 0
             while accuracy*100.0 < acc_cutoff:
                 acc = []
@@ -82,6 +84,7 @@ def runModel(experiment, datadir=datadir,practice=True,learning='online',
                     ntrials_viewed += 1
                 
                 accuracy = np.mean(acc)
+                online_accuracy.append(accuracy)
                 if verbose and count%50==0:
                     print('Batch', count, 'achieved', accuracy*100.0,'%')
 
@@ -91,36 +94,36 @@ def runModel(experiment, datadir=datadir,practice=True,learning='online',
                     if verbose: print('Achieved', accuracy*100.0, '%, greater than', acc_cutoff, '% threshold -  exiting training after', count, 'batches') 
                 
                 #if count >2: break
-
-        if learning=='batch':
-
-            input_trials = experiment.online_input_batches # task x stim x input
-            output_trials = experiment.online_output_batches # task x stim x output
-            n_tasks = input_trials.shape[0]
-            n_stims = input_trials.shape[1]
-            stim_ind = np.arange(n_stims)
-            np.random.shuffle(stim_ind)
-            i = 0
-            accuracy = 0
-            batch = 0 
-            while accuracy < acc_cutoff:
-                stim = stim_ind[i]
-                outputs, targets, loss = mod.train(Network,
-                                                   input_trials[:,stim,:],
-                                                   output_trials[:,stim,:])
-
-                accuracy = np.mean(mod.accuracyScore(Network,outputs,targets)) * 100.0
-
-                if verbose:
-                    print('Batch', batch, 'achieved', accuracy,'%')
-
-                i += 1
-                if i >= n_stims:
-                    i = 0 
-                    np.random.shuffle(stim_ind)
-
-                ntrials_viewed += n_tasks
-                batch += 1
+##TODO## not prepared
+#        if learning=='batch':
+#
+#            input_trials = experiment.online_input_batches # task x stim x input
+#            output_trials = experiment.online_output_batches # task x stim x output
+#            n_tasks = input_trials.shape[0]
+#            n_stims = input_trials.shape[1]
+#            stim_ind = np.arange(n_stims)
+#            np.random.shuffle(stim_ind)
+#            i = 0
+#            accuracy = 0
+#            batch = 0 
+#            while accuracy < acc_cutoff:
+#                stim = stim_ind[i]
+#                outputs, targets, loss = mod.train(Network,
+#                                                   input_trials[:,stim,:],
+#                                                   output_trials[:,stim,:])
+#
+#                accuracy = np.mean(mod.accuracyScore(Network,outputs,targets)) * 100.0
+#
+#                if verbose:
+#                    print('Batch', batch, 'achieved', accuracy,'%')
+#
+#                i += 1
+#                if i >= n_stims:
+#                    i = 0 
+#                    np.random.shuffle(stim_ind)
+#
+#                ntrials_viewed += n_tasks
+#                batch += 1
 
     if save_model is not None:
         torch.save(Network,datadir + 'results/model/' + save_model)
@@ -134,5 +137,5 @@ def runModel(experiment, datadir=datadir,practice=True,learning='online',
     #if save_csv:
     #    np.savetxt('ANN1280_HiddenLayerRSM_NoDynamics.csv',rsm)
 
-    return Network, ntrials_viewed
+    return Network, ntrials_viewed, online_accuracy
 
