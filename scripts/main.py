@@ -157,7 +157,7 @@ def run(args):
         print('**SIMULATION**', i, 'saving to file:', modelname, '| cuda:', cuda)
         network_prac2nov, ntrials_viewed, acc = runModel.runModel(experiment,si_c=si_c,acc_cutoff=acc_cutoff,learning=learning,datadir=datadir,practice=practice,
                                                                   num_hidden=num_hidden,learning_rate=learning_rate,
-                                                                  save_model=modelname,verbose=True,lossfunc=lossfunc,pretraining=pretraining)
+                                                                  save_model=modelname,verbose=True,lossfunc=lossfunc,pretraining=pretraining,cuda=cuda)
 
         network_prac2nov.eval()
         online_accuracies.append(acc)
