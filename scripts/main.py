@@ -53,7 +53,7 @@ def run(args):
     batchname = args.batchname
     lossfunc = args.lossfunc
     pretraining = args.pretraining
-    cuda = arg.cuda
+    cuda = args.cuda
     verbose = args.verbose
 
     # batchfilename = datadir + 'results/model/TrialBatches_4Prac60Nov_FullStimSets'
