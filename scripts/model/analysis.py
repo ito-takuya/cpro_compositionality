@@ -21,7 +21,7 @@ basedir = '../../../data/'
 
 
 
-def rsa_pracnov(network,batchfilename='../../data/results/model/TrialBatches_4Prac60Nov',measure='corr'):
+def rsa_pracnov(network,batchfilename='../../data/results/model/Experiment_FullTaskSet',measure='corr'):
     """
     For each input element, inject a single element representing each rule/stimulus
     Observe the representational space
@@ -29,8 +29,13 @@ def rsa_pracnov(network,batchfilename='../../data/results/model/TrialBatches_4Pr
 
     #batchfilename = datadir + 'results/model/TrialBatches_4Prac60Nov'
 
-    print('Loading practice and novel batches')
-    TrialObj = mod.TrialBatchesPracticeNovel(filename=batchfilename)
+    #print('Loading practice and novel batches')
+    #TrialObj = mod.TrialBatchesPracticeNovel(filename=batchfilename)
+
+    #batchfilename = datadir + 'results/model/' + batchname
+    #experiment = task.Experiment(NUM_INPUT_ELEMENTS=28,
+#				 NUM_OUTPUT_ELEMENTS=4,
+#				 filename=batchfilename)
     #practice_input_batches, practice_output_batches = TrialObj.loadBatches(condition='practice',cuda=False) # batches x trials x input elements
     #novel_input_batches, novel_output_batches = TrialObj.loadBatches(condition='novel',cuda=False)
     prac_ruleset = pd.read_csv(batchfilename + '_practice.csv')
