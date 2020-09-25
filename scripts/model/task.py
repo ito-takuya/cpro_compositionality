@@ -582,7 +582,7 @@ def create4Practiced60NovelTaskContexts(taskRuleSet):
     return df_prac, df_nov
 
 
-def createMotorRulePrimitives(task_rules, stimuli, printTask=False):
+def createMotorRulePrimitives():
     """
     Solves CPRO task given a set of inputs and a task rule
     """
@@ -644,4 +644,4 @@ def createMotorRulePrimitives(task_rules, stimuli, printTask=False):
     if motorOutput=='r_mid': outputcode[2] = 1
     if motorOutput=='r_ind': outputcode[3] = 1
 
-    return motorOutput, outputcode
+    return taskrulecode, outputcode
