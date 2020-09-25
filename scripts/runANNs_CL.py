@@ -23,14 +23,12 @@ datadir = '../../data/'
 
 def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
              num_hidden=128,learning_rate=0.0001,acc_cutoff=95.0,
-             save_rsm=False,save_hiddenrsm_pdf=False,save_model=None,verbose=True,
-             lossfunc='MSE',pretraining=False):
+             save_model=None,verbose=True,
+             lossfunc='MSE',pretraining=False,cuda=False):
     """
     'online training model'
     num_hidden - # of hidden units
     learning_rate - learning rate 
-    save_rsm - Save out the RSM?
-    save_hiddenrsm_pdf - save out a PDF of the RSM?
     """
 
     #### ANN construction
@@ -40,9 +38,8 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
                          num_hidden=num_hidden,
                          num_motor_decision_outputs=6,
                          learning_rate=learning_rate,
-                         lossfunc=lossfunc)
-    # network.cuda = True
-    network = network.cpu()
+                         lossfunc=lossfunc,
+                         cuda=cuda)
 
     # Register starting param-values (needed for "intelligent synapses").
     if network.si_c>0:
@@ -337,15 +334,6 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
 
     if save_model is not None:
         torch.save(network,datadir + 'results/model/' + save_model)
-
-    #### Save out hidden layer RSM
-    #hidden, rsm = analysis.rsa(network,show=save_hiddenrsm_pdf,savepdf=save_hiddenrsm_pdf)
-    ## hidden = hidden.detach().numpy()
-    ## input_matrix = input_matrix.detach().numpy()
-
-    ## Save out RSM 
-    #if save_rsm:
-    #    np.savetxt('ANN1280_HiddenLayerRSM_NoDynamics.csv',rsm)
 
     return network, ntrials_viewed, online_accuracy
 

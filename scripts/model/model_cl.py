@@ -40,6 +40,12 @@ class ANN(torch.nn.Module):
         self.num_hidden = num_hidden
         self.num_motor_decision_outputs = num_motor_decision_outputs
         self.cuda = cuda
+        
+        # network.cuda = True
+        if cuda:
+            network = network.cuda()
+        else:
+            network = network.cpu()
 
         # Define entwork architectural parameters
         super(ANN,self).__init__()
