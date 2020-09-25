@@ -46,7 +46,7 @@ class ANN(torch.nn.Module):
         if cuda:
             self = self.cuda()
         else:
-            self = selfcpu()
+            self = self.cpu()
 
         self.w_in = torch.nn.Linear(num_sensory_inputs+num_rule_inputs,num_hidden)
         self.w_rec = torch.nn.Linear(num_hidden,num_hidden)
