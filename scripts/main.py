@@ -193,6 +193,7 @@ def run(args):
         df['Simulation'].append(i)
         df['Trials viewed'].append(ntrials_viewed)
         print('\t 1-rule overlap acc =',acc)   
+        print('\toutputs device:', outputs.device)
 
     df = pd.DataFrame(df) 
     df.to_csv(save_model + '.csv')

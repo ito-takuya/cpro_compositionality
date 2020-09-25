@@ -39,7 +39,6 @@ class ANN(torch.nn.Module):
         self.num_sensory_inputs =  num_sensory_inputs
         self.num_hidden = num_hidden
         self.num_motor_decision_outputs = num_motor_decision_outputs
-        self.cuda = cuda
         
         # Define entwork architectural parameters
         super(ANN,self).__init__()
