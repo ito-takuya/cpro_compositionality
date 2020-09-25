@@ -27,9 +27,9 @@ class ANN(torch.nn.Module):
                  num_rule_inputs=12,
                  num_sensory_inputs=16,
                  num_hidden=128,
-                 num_motor_decision_outputs=4,
+                 num_motor_decision_outputs=6,
                  learning_rate=0.0001,
-                 thresh=0.9,
+                 thresh=0.0,
                  si_c=0,
                  cuda=False,
                  lossfunc='MSE'):
@@ -159,11 +159,15 @@ class ANN(torch.nn.Module):
 
 def train(network, inputs, targets, si=True, dropout=False):
     """Train network"""
+    if network.cuda:
+        train_input = train_inputs[:,:].cuda()
+        train_output = train_outputs[:,:].cuda()
+
     network.train()
     network.zero_grad()
     network.optimizer.zero_grad()
 
-    outputs, hidden = network.forward(inputs,noise=False,dropout=dropout)
+    outputs, hidden = network.forward(inputs,noise=True,dropout=dropout)
 
     # Calculate loss
     if isinstance(network.lossfunc,torch.nn.CrossEntropyLoss):
@@ -191,7 +195,7 @@ def train(network, inputs, targets, si=True, dropout=False):
     return outputs, targets, loss
 
 def batch_training(network,train_inputs,train_outputs,acc_cutoff=99.5,si=True,
-                     cuda=False,verbose=True):
+                     verbose=True):
 
     accuracy_per_batch = []
 
@@ -205,7 +209,7 @@ def batch_training(network,train_inputs,train_outputs,acc_cutoff=99.5,si=True,
     for batch in np.arange(train_inputs.shape[0]):
         batch_id = batch_ordering[batch]
 
-        if cuda:
+        if network.cuda:
             train_input_batch = train_inputs[batch_id,:,:].cuda()
             train_output_batch = train_outputs[batch_id,:,:].cuda()
         else:
@@ -242,7 +246,7 @@ def batch_training(network,train_inputs,train_outputs,acc_cutoff=99.5,si=True,
     return nsamples_viewed, nbatches_trained
 
 def task_training(network,train_inputs,train_outputs,acc_cutoff=99.5,si=True,dropout=False,
-                     cuda=False,verbose=True):
+                     verbose=True):
     """
     training for tasks (using all stimulus combinations)
     """
@@ -255,7 +259,7 @@ def task_training(network,train_inputs,train_outputs,acc_cutoff=99.5,si=True,dro
     accuracy = 0
     while accuracy < acc_cutoff:
 
-        if cuda:
+        if network.cuda:
             train_input = train_inputs[:,:].cuda()
             train_output = train_outputs[:,:].cuda()
 

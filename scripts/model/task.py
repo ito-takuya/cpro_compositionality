@@ -247,6 +247,10 @@ def create_random_trials(taskRuleSet,ntrials_per_task,seed):
 
             trialcount += 1
             
+
+    # Pad output with 2 additional units for pretraining tasks
+    tmp_zeros = np.zeros((2,output_matrix.shape[1]))
+    output_matrix = np.vstack((output_matrix,tmp_zeros))
     return input_matrix, output_matrix 
 
 def create_all_trials(taskRuleSet):
@@ -291,6 +295,9 @@ def create_all_trials(taskRuleSet):
 
             trialcount += 1
             
+    # Pad output with 2 additional units for pretraining tasks
+    tmp_zeros = np.zeros((2,output_matrix.shape[1],output_matrix.shape[2]))
+    output_matrix = np.vstack((output_matrix,tmp_zeros))
     return input_matrix, output_matrix 
 
 def createSensoryInputs(nStims=2):
@@ -582,14 +589,14 @@ def create4Practiced60NovelTaskContexts(taskRuleSet):
     return df_prac, df_nov
 
 
-def createMotorRulePrimitives():
+def _create_sensorimotor_pretraining_rules():
     """
-    Solves CPRO task given a set of inputs and a task rule
-    """
-    logicRules = {0: 'both',
-                  1: 'notboth',
-                  2: 'either',
-                  3: 'neither'}
+    create rule combinations with one sensory rule and one motor rule
+    """    
+#    logicRules = {0: 'both',
+#                  1: 'notboth',
+#                  2: 'either',
+#                  3: 'neither'}
     sensoryRules = {4: 'red',
                     5: 'vertical',
                     6: 'high',
@@ -601,7 +608,6 @@ def createMotorRulePrimitives():
     
     
     taskrules = {}
-    taskrules['Logic'] = []
     taskrules['Sensory'] = []
     taskrules['Motor'] = []
     # Create another field for the sensory category (to select stimuli from)
@@ -609,34 +615,124 @@ def createMotorRulePrimitives():
     # For RNN training
     taskrules['Code'] = []
     
-    for mo in motorRules:
-        code = np.zeros((12,))
-        # Logic rule
-        taskrules['Logic'].append(None)
-        
-        # Sensory rule
-        taskrules['Sensory'].append(None)
-        # Define sensory category
-        taskrules['SensoryCategory'].append(None)
-        
-        # Motor rule
-        taskrules['Motor'].append(motorRules[mo])
-        code[mo] = 1
-        
-        taskrules['Code'].append(list(code))
+    for se in sensoryRules:
+        for mo in motorRules:
+            code = np.zeros((12,))
+            # Sensory rule
+            taskrules['Sensory'].append(sensoryRules[se])
+            code[se] = 1
+            # Define sensory category
+            if sensoryRules[se]=='red': category = 'Color'
+            if sensoryRules[se]=='vertical': category = 'Orientation'
+            if sensoryRules[se]=='high': category = 'Pitch'
+            if sensoryRules[se]=='constant': category = 'Constant'
+            taskrules['SensoryCategory'].append(category)
+            
+            # Motor rule
+            taskrules['Motor'].append(motorRules[mo])
+            code[mo] = 1
+            
+            taskrules['Code'].append(list(code))
+                
+    return pd.DataFrame(taskrules)
+
+def _create_logicalsensory_pretraining_rules():
+    """
+    create rule combinations with one sensory rule and one motor rule
+    """    
+    logicRules = {0: 'both',
+                  1: 'notboth',
+                  2: 'either',
+                  3: 'neither'}
+    sensoryRules = {4: 'red',
+                    5: 'vertical',
+                    6: 'high',
+                    7: 'constant'}
+#    motorRules = {8: 'l_mid',
+#                  9: 'l_ind',
+#                  10: 'r_ind',
+#                  11: 'r_mid'}
+    
+    
+    taskrules = {}
+    taskrules['Sensory'] = []
+    taskrules['Logic'] = []
+    # Create another field for the sensory category (to select stimuli from)
+    taskrules['SensoryCategory'] = []
+    # For RNN training
+    taskrules['Code'] = []
+    
+    for se in sensoryRules:
+        for lo in logicRules:
+            code = np.zeros((12,))
+            # Sensory rule
+            taskrules['Sensory'].append(sensoryRules[se])
+            code[se] = 1
+            # Define sensory category
+            if sensoryRules[se]=='red': category = 'Color'
+            if sensoryRules[se]=='vertical': category = 'Orientation'
+            if sensoryRules[se]=='high': category = 'Pitch'
+            if sensoryRules[se]=='constant': category = 'Constant'
+            taskrules['SensoryCategory'].append(category)
+            
+            # Motor rule
+            taskrules['Logic'].append(logicRules[lo])
+            code[lo] = 1
+            
+            taskrules['Code'].append(list(code))
+                
+    return pd.DataFrame(taskrules)
+
+def _solve_sensorimotor_pretraining_task(task_rules,stimuli,printTask=False):
+    """
+    Solves simple stimulus-response associations given a stimulus, sensory rule, and motor rule 
+    'stim' parameter indicates whether one should focus on the first or second stim
+    """
+    sensoryRule = task_rules.Sensory
+    motorRule = task_rules.Motor
+
+    sensoryCategory = task_rules.SensoryCategory
+
+    # Isolate the property for each stimulus relevant to the sensory rule
+    stim = stimuli[sensoryCategory]
+
+    # Run through logic rule gates
+    if stim==sensoryRule:
+        gate = True
+    else:
+        gate = False
+
+    ## Print task first
+    if printTask:
+        print('Sensory rule:', sensoryRule)
+        print('Motor rule:', motorRule)
+        print('**Stimuli**')
+        print(stim)
 
     # Apply logic gating to motor rules
     if motorRule=='l_mid':
-        motorOutput = 'l_mid'
+        if gate==True:
+            motorOutput = 'l_mid'
+        else:
+            motorOutput = 'l_ind'
 
     if motorRule=='l_ind':
-        motorOutput = 'l_ind'
+        if gate==True:
+            motorOutput = 'l_ind'
+        else:
+            motorOutput = 'l_mid'
 
     if motorRule=='r_mid':
-        motorOutput = 'r_mid'
+        if gate==True:
+            motorOutput = 'r_mid'
+        else:
+            motorOutput = 'r_ind'
 
     if motorRule=='r_ind':
-        motorOutput = 'r_ind'
+        if gate==True:
+            motorOutput = 'r_ind'
+        else:
+            motorOutput = 'r_mid'
 
     outputcode = np.zeros((4,))
     if motorOutput=='l_mid': outputcode[0] = 1
@@ -644,4 +740,238 @@ def createMotorRulePrimitives():
     if motorOutput=='r_mid': outputcode[2] = 1
     if motorOutput=='r_ind': outputcode[3] = 1
 
-    return taskrulecode, outputcode
+    return motorOutput, outputcode
+
+def _solve_logicalsensory_pretraining_task(task_rules,stimuli,printTask=False):
+    """
+    Solves simple stimulus-response associations given a stimulus, sensory rule, and motor rule 
+    'stim' parameter indicates whether one should focus on the first or second stim
+    """
+    logicRule = task_rules.Logic
+    sensoryRule = task_rules.Sensory
+
+    sensoryCategory = task_rules.SensoryCategory
+
+    # Isolate the property for each stimulus relevant to the sensory rule
+    stim1 = stimuli[sensoryCategory + '1']
+    stim2 = stimuli[sensoryCategory + '2']
+
+    # Run through logic rule gates
+    if logicRule == 'both':
+        if stim1==sensoryRule and stim2==sensoryRule:
+            gate = True
+        else:
+            gate = False
+
+    if logicRule == 'notboth':
+        if stim1!=sensoryRule or stim2!=sensoryRule:
+            gate = True
+        else:
+            gate = False
+
+    if logicRule == 'either':
+        if stim1==sensoryRule or stim2==sensoryRule:
+            gate = True
+        else:
+            gate = False
+
+    if logicRule == 'neither':
+        if stim1!=sensoryRule and stim2!=sensoryRule:
+            gate = True
+        else:
+            gate = False
+
+
+    ## Print task first
+    if printTask:
+        print('Logic rule:', logicRule)
+        print('Sensory rule:', sensoryRule)
+        print('**Stimuli**')
+        print(stim1, stim2)
+
+    # If gate is 'true', then indicate as all 1s
+    outputcode = np.zeros((6,))
+    if gate:
+        outputcode[4] = 1
+    else:
+        outputcode[5] = 1
+
+    return gate, outputcode
+
+def _create_pretraining_stimuli():
+    stimdata = {}
+    # Stim 1 empty columns
+    stimdata['Color'] = []
+    stimdata['Orientation'] = []
+    stimdata['Pitch'] = []
+    stimdata['Constant'] = []
+    # Code for RNN training
+    stimdata['Code'] = []
+
+    stim_ind = np.arange(16) # 16 total stimulus combinations
+
+    # Property index tells us which columns ID the property in question
+    color = {0:'red',
+             1:'blue'}
+    orientation = {2:'vertical',
+                   3:'horizontal'}
+    pitch = {4:'high',
+             5:'low'}
+    constant = {6:'constant',
+                7:'beeping'}
+    
+    # Code in the sensory stimulus for the 1st stimulus presentation
+    for col1 in color:
+        for ori1 in orientation:
+            for pit1 in pitch:
+                for con1 in constant:
+                    code = np.zeros((len(stim_ind),))
+                    # Stim 1
+                    code[col1] = 1
+                    stimdata['Color'].append(color[col1])
+                    code[ori1] = 1
+                    stimdata['Orientation'].append(orientation[ori1])
+                    code[pit1] = 1
+                    stimdata['Pitch'].append(pitch[pit1])
+                    code[con1] = 1
+                    stimdata['Constant'].append(constant[con1])
+
+                    # Code
+                    stimdata['Code'].append(list(code))
+
+    # Code in the sensory stimulus for the 2nd stimulus presentation
+    for col2 in color:
+        for ori2 in orientation:
+            for pit2 in pitch:
+                for con2 in constant:
+                    code = np.zeros((len(stim_ind),))
+                    # Stim 2 -- need to add 8, since this is the second stimuli
+                    code[col2+8] = 1
+                    stimdata['Color'].append(color[col2])
+                    code[ori2+8] = 1
+                    stimdata['Orientation'].append(orientation[ori2])
+                    code[pit2+8] = 1
+                    stimdata['Pitch'].append(pitch[pit2])
+                    code[con2+8] = 1
+                    stimdata['Constant'].append(constant[con2])
+                    
+                    # Code
+                    stimdata['Code'].append(list(code))
+                    
+    return pd.DataFrame(stimdata) 
+
+def create_motorrule_pretraining():
+    """
+    Creates all possible trials given a task rule set (iterates through all possible stimulus combinations)
+    Will end up with 64 (task rules) * nStimuli total number of input stimuli
+    """
+
+    ####
+    # Construct trial dynamics
+    rule_ind = np.arange(12) # rules are the first 12 indices of input vector
+    stim_ind = np.arange(12,28) # stimuli are the last 16 indices of input vector
+    motor_ind = np.arange(8,12)
+    input_size = len(rule_ind) + len(stim_ind)
+    input_matrix = []
+    output_matrix = []
+
+    # Now create motor rule primitives
+    for mot in motorCode:
+        input_arr = np.zeros((input_size,))
+        output_arr = np.zeros((4,))
+        input_arr[motor_ind[mot]] = 1
+        output_arr[mot] = 1
+
+        input_matrix.append(input_arr)
+        output_matrix.append(output_arr)
+    
+    input_matrix = np.asarray(input_matrix)
+    output_matrix = np.asarray(output_matrix)
+    
+    tmp_zeros = np.zeros((output_matrix.shape[0],2))
+    output_matrix = np.hstack((output_matrix,tmp_zeros))
+            
+    return input_matrix, output_matrix 
+
+def create_sensorimotor_pretraining():
+    """
+    Creates simple pretraining tasks 
+    motor rule only (i.e., motor rule -> motor response)
+    sensory + motor rules (stimulus-motor associations)
+    """
+    stimuliSet = _create_pretraining_stimuli()
+    taskRuleSet = _create_sensorimotor_pretraining_rules()
+
+    # Create 1d array to randomly sample indices from
+    stimIndices = np.arange(len(stimuliSet))
+    taskIndices = np.arange(len(taskRuleSet))
+
+    ####
+    # Construct trial dynamics
+    rule_ind = np.arange(12) # rules are the first 12 indices of input vector
+    stim_ind = np.arange(12,28) # stimuli are the last 16 indices of input vector
+    input_size = len(rule_ind) + len(stim_ind)
+    input_matrix = []
+    output_matrix = []
+    for tasknum in range(len(taskRuleSet)):
+        
+        for i in stimuliSet.index:
+            input_arr = np.zeros((input_size,))
+
+            ## Create trial array -- 1st stim
+            # Find input code for this task set
+            input_arr[rule_ind] = taskRuleSet.Code[tasknum] 
+            input_arr[stim_ind] = stimuliSet.Code[i]
+            input_matrix.append(input_arr)
+
+            # Solve task to get the output code
+            tmpresp, out_code = _solve_sensorimotor_pretraining_task(taskRuleSet.iloc[tasknum],stimuliSet.iloc[i])
+            output_matrix.append(out_code)
+
+    input_matrix = np.asarray(input_matrix)
+    output_matrix = np.asarray(output_matrix)
+
+    tmp_zeros = np.zeros((output_matrix.shape[0],2))
+    output_matrix = np.hstack((output_matrix,tmp_zeros))
+            
+    return input_matrix, output_matrix 
+
+def create_logicalsensory_pretraining():
+    """
+    Creates simple pretraining tasks 
+    logic + sensory rules (logical sensory associations)
+    outputs will be all 1s or 0s, depending on a TRUE/FALSE assessment
+    """
+    stimuliSet = createSensoryInputs()
+    taskRuleSet = _create_logicalsensory_pretraining_rules()
+
+    # Create 1d array to randomly sample indices from
+    stimIndices = np.arange(len(stimuliSet))
+    taskIndices = np.arange(len(taskRuleSet))
+
+    ####
+    # Construct trial dynamics
+    rule_ind = np.arange(12) # rules are the first 12 indices of input vector
+    stim_ind = np.arange(12,28) # stimuli are the last 16 indices of input vector
+    input_size = len(rule_ind) + len(stim_ind)
+    input_matrix = []
+    output_matrix = []
+    for tasknum in range(len(taskRuleSet)):
+        
+        for i in stimuliSet.index:
+            input_arr = np.zeros((input_size,))
+
+            ## Create trial array -- 1st stim
+            # Find input code for this task set
+            input_arr[rule_ind] = taskRuleSet.Code[tasknum] 
+            input_arr[stim_ind] = stimuliSet.Code[i]
+            input_matrix.append(input_arr)
+
+            # Solve task to get the output code
+            tmpresp, out_code = _solve_logicalsensory_pretraining_task(taskRuleSet.iloc[tasknum],stimuliSet.iloc[i])
+            output_matrix.append(out_code)
+
+    input_matrix = np.asarray(input_matrix)
+    output_matrix = np.asarray(output_matrix)
+            
+    return input_matrix, output_matrix 

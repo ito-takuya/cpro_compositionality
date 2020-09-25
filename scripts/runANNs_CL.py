@@ -22,14 +22,13 @@ import pandas as pd
 datadir = '../../data/'
 
 def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
-             num_hidden=128,learning_rate=0.0001,thresh=0.5,acc_cutoff=95.0,
+             num_hidden=128,learning_rate=0.0001,acc_cutoff=95.0,
              save_rsm=False,save_hiddenrsm_pdf=False,save_model=None,verbose=True,
-             lossfunc='MSE'):
+             lossfunc='MSE',pretraining=False):
     """
     'online training model'
     num_hidden - # of hidden units
     learning_rate - learning rate 
-    thresh - threshold for classifying output units
     save_rsm - Save out the RSM?
     save_hiddenrsm_pdf - save out a PDF of the RSM?
     """
@@ -39,51 +38,169 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
                          si_c=si_c,
                          num_sensory_inputs=16,
                          num_hidden=num_hidden,
-                         num_motor_decision_outputs=4,
+                         num_motor_decision_outputs=6,
                          learning_rate=learning_rate,
-                         thresh=thresh,
                          lossfunc=lossfunc)
     # network.cuda = True
     network = network.cpu()
 
+    # Register starting param-values (needed for "intelligent synapses").
+    if network.si_c>0:
+        W = {}
+        p_old = {}
+        for n, p in network.named_parameters():
+            if p.requires_grad:
+                n = n.replace('.', '__')
+                # Set initial    
+                W[n] = p.data.clone().zero_()
+                p_old[n] = p.data.clone()
+                # Store initial tensors in state dict
+                network.register_buffer('{}_SI_prev_task'.format(n), p.data.clone())
+                #omega = p.detach().clone().zero_()
+                #network.register_buffer('{}_SI_omega'.format(n), omega)
+        network.update_omega(W,network.epsilon)
+    else:
+        W = None
+
+    if pretraining:
+        nbatches_pretraining = 200
+        pretraining_input = experiment.pretraining_input
+        pretraining_output= experiment.pretraining_output
+
+        sensorimotor_pretraining_input = experiment.sensorimotor_pretraining_input
+        sensorimotor_pretraining_output= experiment.sensorimotor_pretraining_output
+
+        logicalsensory_pretraining_input = experiment.logicalsensory_pretraining_input
+        logicalsensory_pretraining_output= experiment.logicalsensory_pretraining_output
+
+#        practice_input_batches = experiment.practice_input_batches
+#        practice_output_batches = experiment.practice_output_batches        
+        
+        ##### First motor rule only pretraining
+        #for i in range(nbatches_pretraining):
+        #    outputs, targets, loss = mod.train(network,
+        #                                       pretraining_input,
+        #                                       pretraining_output,
+        #                                       si=W,dropout=True)
+
+        #if network.si_c>0:
+        #    network.update_omega(W, network.epsilon)
+
+    
+        ##### Now train on simple logicalsensory rule pretraining
+        loss1 = 1
+        loss2 = 1
+        loss = 0
+        count = 0
+        while loss1>0.01 or loss2>0.01 or loss>0.01: 
+
+            ##### Motor rule pretraining
+            #outputs, targets, loss = mod.train(network,
+            #                                   pretraining_input,
+            #                                   pretraining_output,
+            #                                   si=W,dropout=True)
+            #loss = loss.detach().numpy()
+
+            #### Logical sensory task pretraining
+            outputs, targets, loss1 = mod.train(network,
+                                               logicalsensory_pretraining_input,
+                                               logicalsensory_pretraining_output,
+                                               si=W,dropout=True)
+
+            #accuracy = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
+            loss1 = loss1.detach().numpy()
+            #accuracy1 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
+
+            outputs, targets, loss2 = mod.train(network,
+                                               sensorimotor_pretraining_input,
+                                               sensorimotor_pretraining_output,
+                                               si=W,dropout=True)
+
+            loss2 = loss2.detach().numpy()
+            #accuracy2 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
+
+
+#            outputs, targets, loss3 = mod.train(network,
+#                                                practice_input_batches,
+#                                                practice_output_batches,
+#                                                si=W,dropout=True)
+
+            #accuracy = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
+
+            if verbose: 
+                if count%20==0:
+                    print('**PRETRAINING**  iteration', count)
+                    print('\tloss on logicalsensory task:', loss1)
+                    print('\tloss on sensorimotor task:', loss2)
+                    #print('\tloss on motor rule pretraining:', loss)
+                  #  print('\taccuracy on practiced tasks:', accuracy)
+
+
+            count += 1
+
+        #### Sensorimotor task pretraining
+
+        if network.si_c>0:
+            network.update_omega(W, network.epsilon)
+
+    ###### 
+    accuracy = 0
+    ntrials_viewed=0
+    online_accuracy=[]
     if practice:
+        network.optimizer = torch.optim.SGD(network.parameters(), lr=0.025)
         #### Load training batches
         if verbose: print('Loading practice and (all tasks) batches')
         practice_input_batches = experiment.practice_input_batches
-        practice_output_batches = experiment.practice_output_batches
-        
+        practice_output_batches = experiment.practice_output_batches        
 
-        # Register starting param-values (needed for "intelligent synapses").
-        if network.si_c>0:
-            W = {}
-            p_old = {}
-            for n, p in network.named_parameters():
-                if p.requires_grad:
-                    n = n.replace('.', '__')
-                    # Set initial    
-                    W[n] = p.data.clone().zero_()
-                    p_old[n] = p.data.clone()
-                    # Store initial tensors in state dict
-                    network.register_buffer('{}_SI_prev_task'.format(n), p.data.clone())
-                    #omega = p.detach().clone().zero_()
-                    #network.register_buffer('{}_SI_omega'.format(n), omega)
-            network.update_omega(W,network.epsilon)
-        else:
-            W = None
-
+        ################################################################
+        accuracy_prac = 0
+        accuracy_simp = 0
+        count = 0
+        #while accuracy_prac < acc_cutoff or accuracy1 < acc_cutoff or accuracy2 < acc_cutoff: 
+        while accuracy_prac < acc_cutoff:
             
+        #    outputs, targets, loss1 = mod.train(network,
+        #                                       logicalsensory_pretraining_input,
+        #                                       logicalsensory_pretraining_output,
+        #                                       si=W,dropout=True)
+        #    #if lossfunc=='CrossEntropy': network.lossfunc = torch.nn.CrossEntropyLoss()
+
+        #    #accuracy = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
+        #    loss1 = loss1.detach().numpy()
+        #    accuracy1 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
+
+        #    outputs, targets, loss2 = mod.train(network,
+        #                                       sensorimotor_pretraining_input,
+        #                                       sensorimotor_pretraining_output,
+        #                                       si=W,dropout=True)
+
+        #    loss2 = loss2.detach().numpy()
+        #    accuracy2 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
 
-        #### train practiced tasks 
-        tmpcutoff = 95.0
-        ntrials_viewed, nbatches_trained = mod.task_training(network,
-                                                              practice_input_batches,
-                                                              practice_output_batches,
-                                                              acc_cutoff=tmpcutoff,
-                                                              si=W,
-                                                              dropout=True,
-                                                              cuda=False,
-                                                              verbose=verbose)  
+            outputs, targets, loss = mod.train(network,
+                                               practice_input_batches,
+                                               practice_output_batches,
+                                               si=W,dropout=True)
+
+            accuracy_prac = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
+
+            if verbose: 
+                if count%1==0:
+                    print('**PRACTICED training** iteration', count)
+                    print('\tPracticed tasks:', accuracy_prac)
+                 #   print('\tSensorimotor tasks:', accuracy2)
+                 #   print('\tLogicalsensory tasks:', accuracy1)
+
+            count += 1
+
+        if network.si_c>0:
+            network.update_omega(W, network.epsilon)
+
+
+        ###############################################################
 
         if network.si_c>0:
             for n, p in network.named_parameters():
@@ -96,10 +213,11 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
                     
             network.update_omega(W, network.epsilon)
 
+        network.optimizer = torch.optim.SGD(network.parameters(), lr=0.05)
         online_accuracy = []
         ####
         if learning=='online':
-            ntrials_per_task_online = 50
+            ntrials_per_task_online = 256
             online_inputs = experiment.online_input_batches # task x stim x input
             online_outputs = experiment.online_output_batches # task x stim x output
             n_tasks = online_inputs.shape[0]
@@ -147,7 +265,7 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
                             response = outputs[out] # Identify response time points
                             target_resp = torch.ByteTensor([out]) # The correct target response
                             max_resp = outputs.argmax().byte()
-                            if max_resp==target_resp and response>thresh: # Make sure network response is correct respnose, and that it exceeds some threshold
+                            if max_resp==target_resp and response>network.thresh: # Make sure network response is correct respnose, and that it exceeds some threshold
                                 acc.append(1.0)
                             else:
                                 acc.append(0)
@@ -181,19 +299,18 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
             batch = 0
             #while batch < nbatches_trained:
             #while accuracy < acc_cutoff:
-            task_ind = np.arange(64)
-            np.random.shuffle(task_ind)
-            for task in task_ind:
-                #stim = np.random.choice(np.arange(n_stims),1,replace=False) # pick a random stimulus set to pair with this task
-                #if len(stim)==1: stim=stim[0]
+            #np.random.shuffle(task_ind)
+            for i in range(2):
+                stim = np.random.choice(np.arange(n_stims),1,replace=False) # pick a random stimulus set to pair with this task
+                if len(stim)==1: stim=stim[0]
                 if network.si_c>0:
                     #outputs, targets, loss = mod.train(network,
                     #                                   torch.flatten(online_inputs,start_dim=0,end_dim=1),
                     #                                   torch.flatten(online_outputs,start_dim=0,end_dim=1),
                     #                                   si=True,dropout=False)
                     outputs, targets, loss = mod.train(network,
-                                                       online_inputs[task,:,:],
-                                                       online_outputs[task,:,:],
+                                                       online_inputs[:,stim,:],
+                                                       online_outputs[:,stim,:],
                                                        si=True,dropout=False)
                 
                 else:
@@ -202,8 +319,8 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
                     #                                   torch.flatten(online_outputs,start_dim=0,end_dim=1),
                     #                                   si=False,dropout=False)
                     outputs, targets, loss = mod.train(network,
-                                                       online_inputs[task,:,:],
-                                                       online_outputs[task,:,:],
+                                                       online_inputs[:,stim,:],
+                                                       online_outputs[:,stim,:],
                                                        si=False,dropout=False)
 
                 accuracy = np.mean(mod.accuracyScore(network,outputs,targets)) * 100.0
