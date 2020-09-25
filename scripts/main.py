@@ -36,6 +36,7 @@ parser.add_argument('--save_model', type=str, default="ANN", help='string name t
 parser.add_argument('--batchname', type=str, default='Experiment_FullTaskSet', help='string name for the experiment filename')
 parser.add_argument('--lossfunc', type=str, default='CrossEntropy', help='MSE or CrossEntropy, which determines the loss function')
 parser.add_argument('--pretraining', action='store_true', help="pretrain network on simple tasks to improve compositionality")
+parser.add_argument('--cuda', action='store_true', help="use gpu/cuda")
 parser.add_argument('--verbose', action='store_false', help='verbose')
 
 def run(args):
