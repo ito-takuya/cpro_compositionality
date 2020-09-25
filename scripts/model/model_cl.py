@@ -164,8 +164,8 @@ class ANN(torch.nn.Module):
 def train(network, inputs, targets, si=True, dropout=False):
     """Train network"""
     if network.gpu:
-        train_input = train_input[:,:].cuda()
-        train_output = train_output[:,:].cuda()
+        inputs = inputs.cuda()
+        outputs = outputs.cuda()
 
     network.train()
     network.zero_grad()
@@ -264,8 +264,8 @@ def task_training(network,train_inputs,train_outputs,acc_cutoff=99.5,si=True,dro
     while accuracy < acc_cutoff:
 
         if network.gpu:
-            train_input = train_inputs[:,:].cuda()
-            train_output = train_outputs[:,:].cuda()
+            train_inputs = train_inputs.cuda()
+            train_outputs = train_outputs.cuda()
 
         outputs, targets, loss = train(network,
                                        train_inputs,
