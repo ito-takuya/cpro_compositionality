@@ -39,6 +39,7 @@ class ANN(torch.nn.Module):
         self.num_sensory_inputs =  num_sensory_inputs
         self.num_hidden = num_hidden
         self.num_motor_decision_outputs = num_motor_decision_outputs
+        self.gpu = cuda
         
         # Define entwork architectural parameters
         super(ANN,self).__init__()
@@ -162,9 +163,9 @@ class ANN(torch.nn.Module):
 
 def train(network, inputs, targets, si=True, dropout=False):
     """Train network"""
-    if network.cuda:
-        train_input = train_inputs[:,:].cuda()
-        train_output = train_outputs[:,:].cuda()
+    if network.gpu:
+        train_input = train_input[:,:].cuda()
+        train_output = train_output[:,:].cuda()
 
     network.train()
     network.zero_grad()
@@ -212,7 +213,7 @@ def batch_training(network,train_inputs,train_outputs,acc_cutoff=99.5,si=True,
     for batch in np.arange(train_inputs.shape[0]):
         batch_id = batch_ordering[batch]
 
-        if network.cuda:
+        if network.gpu:
             train_input_batch = train_inputs[batch_id,:,:].cuda()
             train_output_batch = train_outputs[batch_id,:,:].cuda()
         else:
@@ -262,7 +263,7 @@ def task_training(network,train_inputs,train_outputs,acc_cutoff=99.5,si=True,dro
     accuracy = 0
     while accuracy < acc_cutoff:
 
-        if network.cuda:
+        if network.gpu:
             train_input = train_inputs[:,:].cuda()
             train_output = train_outputs[:,:].cuda()
 
