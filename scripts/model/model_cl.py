@@ -41,14 +41,12 @@ class ANN(torch.nn.Module):
         self.num_motor_decision_outputs = num_motor_decision_outputs
         self.cuda = cuda
         
-        # network.cuda = True
-        if cuda:
-            network = network.cuda()
-        else:
-            network = network.cpu()
-
         # Define entwork architectural parameters
         super(ANN,self).__init__()
+        if cuda:
+            self = self.cuda()
+        else:
+            self = selfcpu()
 
         self.w_in = torch.nn.Linear(num_sensory_inputs+num_rule_inputs,num_hidden)
         self.w_rec = torch.nn.Linear(num_hidden,num_hidden)
