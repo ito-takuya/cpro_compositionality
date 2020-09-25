@@ -46,120 +46,6 @@ class Experiment(object):
             print('Creating new practiced and novel rule sets...')
             self.splitPracticedNovelTaskSets()
 
-
-    def createFullTaskSet(self,condition='practice',shuffle=False):
-        if os.path.exists(self.filename + '.h5'):
-            print('WARNING... overwriting previous task data set @', self.filename+'.h5')
-
-        if condition=='practice':
-            ntrials = len(createSensoryInputs())
-            ruleset = self.practicedRuleSet
-        elif condition=='novel':
-            ntrials = len(createSensoryInputs())
-            ruleset = self.novelRuleSet
-        elif condition=='all':
-            ntrials = len(createSensoryInputs())
-            ruleset = self.taskRuleSet
-
-        batchnum = 1 # only one batch if we sample the entire stimulus set equally
-        batch_inputtensor, batch_outputtensor = create_all_trials(ruleset)
-
-        h5f = h5py.File(self.filename + '.h5','a')
-        try:
-            h5f.create_dataset(condition + '/inputs',data=batch_inputtensor)
-            h5f.create_dataset(condition + '/outputs',data=batch_outputtensor)
-        except:
-            del h5f[condition + '/inputs'], h5f[condition + '/outputs']
-            h5f.create_dataset(condition + '/inputs',data=batch_inputtensor)
-            h5f.create_dataset(condition + '/outputs',data=batch_outputtensor)
-        h5f.close()
-
-    def createRandomTrialBatches(self,nbatches,ntrials_per_task,condition='practice',nproc=10):
-        if os.path.exists(self.filename + '.h5'):
-            print('WARNING... overwriting previous task data set @', self.filename+'.h5')
-
-        ntrials = ntrials_per_task
-
-        if condition=='practice':
-            ruleset = self.practicedRuleSet
-        elif condition=='novel':
-            ruleset = self.novelRuleSet
-        elif condition=='all':
-            ruleset = self.taskRuleSet
-        # Initialize empty tensor for batches
-        batch_inputtensor = np.zeros((self.NUM_INPUT_ELEMENTS, len(ruleset)*ntrials, nbatches))
-        batch_outputtensor = np.zeros((self.NUM_OUTPUT_ELEMENTS, len(ruleset)*ntrials, nbatches))
-
-        inputs = []
-        for batch in range(nbatches):
-            shuffle = True
-            seed = np.random.randint(1000000)
-            inputs.append((ruleset,ntrials,shuffle,batch,seed))
-
-        pool = mp.Pool(processes=nproc)
-        results = pool.starmap_async(create_trial_batches,inputs).get()
-        pool.close()
-        pool.join()
-
-        batch = 0
-        for result in results:
-            batch_inputtensor[:,:,batch] = result[0]
-            batch_outputtensor[:,:,batch] = result[1]
-            batch += 1
-
-        h5f = h5py.File(self.filename + '.h5','a')
-        try:
-            h5f.create_dataset(condition + '/inputs',data=batch_inputtensor)
-            h5f.create_dataset(condition + '/outputs',data=batch_outputtensor)
-        except:
-            del h5f[condition + '/inputs'], h5f[condition + '/outputs']
-            h5f.create_dataset(condition + '/inputs',data=batch_inputtensor)
-            h5f.create_dataset(condition + '/outputs',data=batch_outputtensor)
-        h5f.close()
-
-    def loadFullTask(self,condition='practice',cuda=False):
-        h5f = h5py.File(self.filename + '.h5','r')
-        inputs = h5f[condition + '/inputs'][:].copy()
-        outputs = h5f[condition + '/outputs'][:].copy()
-        h5f.close()
-
-        inputs = inputs.T
-        outputs = outputs.T
-
-        inputs = torch.from_numpy(inputs)
-        outputs = torch.from_numpy(outputs)
-
-        inputs = inputs.float()
-        outputs = outputs.float()
-
-        if cuda:
-            inputs = inputs.cuda()
-            outputs = outputs.cuda()
-
-        return inputs, outputs
-
-    def loadBatches(self,condition='practice',cuda=False):
-        h5f = h5py.File(self.filename + '.h5','r')
-        inputs = h5f[condition + '/inputs'][:].copy()
-        outputs = h5f[condition + '/outputs'][:].copy()
-        h5f.close()
-
-        # Input dimensions: input features, nMiniblocks, nBatches
-        inputs = np.transpose(inputs, (0, 2, 1)) # convert to: nBatches, nMiniblocks, input dimensions
-        outputs = np.transpose(outputs, (0, 2, 1)) # convert to: nBatches, nMiniblocks, input dimensions
-
-        inputs = torch.from_numpy(inputs)
-        outputs = torch.from_numpy(outputs)
-
-        inputs = inputs.float()
-        outputs = outputs.float()
-
-        if cuda:
-            inputs = inputs.cuda()
-            outputs = outputs.cuda()
-
-        return inputs, outputs
-    
     def splitPracticedNovelTaskSets(self):
         taskRuleSet = createRulePermutations()
         practicedRuleSet, novelRuleSet = create4Practiced60NovelTaskContexts(taskRuleSet)
@@ -226,7 +112,8 @@ def create_random_trials(taskRuleSet,ntrials_per_task,seed):
     stim_ind = np.arange(12,28) # stimuli are the last 16 indices of input vector
     input_size = len(rule_ind) + len(stim_ind)
     input_matrix = np.zeros((input_size,ntrials_total))
-    output_matrix = np.zeros((4,ntrials_total))
+    #output_matrix = np.zeros((4,ntrials_total))
+    output_matrix = np.zeros((ntrials_total,))
     trialcount = 0
     for tasknum in range(len(taskRuleSet)):
         
@@ -243,14 +130,15 @@ def create_random_trials(taskRuleSet,ntrials_per_task,seed):
             tmpresp, out_code = solveInputs(taskRuleSet.iloc[tasknum], stimuliSet2.iloc[0])
 
             input_matrix[stim_ind,trialcount] = stimuliSet2.Code[0]
-            output_matrix[:,trialcount] = out_code
+            #output_matrix[:,trialcount] = out_code
+            output_matrix[trialcount] = np.where(out_code==1)[0][0]
 
             trialcount += 1
             
 
     # Pad output with 2 additional units for pretraining tasks
-    tmp_zeros = np.zeros((2,output_matrix.shape[1]))
-    output_matrix = np.vstack((output_matrix,tmp_zeros))
+    #tmp_zeros = np.zeros((2,output_matrix.shape[1]))
+    #output_matrix = np.vstack((output_matrix,tmp_zeros))
     return input_matrix, output_matrix 
 
 def create_all_trials(taskRuleSet):
@@ -278,7 +166,8 @@ def create_all_trials(taskRuleSet):
     stim_ind = np.arange(12,28) # stimuli are the last 16 indices of input vector
     input_size = len(rule_ind) + len(stim_ind)
     input_matrix = np.zeros((input_size,len(stimuliSet),len(taskRuleSet)))
-    output_matrix = np.zeros((4,len(stimuliSet),len(taskRuleSet)))
+    #output_matrix = np.zeros((4,len(stimuliSet),len(taskRuleSet)))
+    output_matrix = np.zeros((len(stimuliSet),len(taskRuleSet)))
     for tasknum in range(len(taskRuleSet)):
         
         trialcount = 0
@@ -291,13 +180,14 @@ def create_all_trials(taskRuleSet):
             tmpresp, out_code = solveInputs(taskRuleSet.iloc[tasknum], stimuliSet.iloc[i])
 
             input_matrix[stim_ind,trialcount,tasknum] = stimuliSet.Code[i]
-            output_matrix[:,trialcount,tasknum] = out_code
+            #output_matrix[:,trialcount,tasknum] = out_code
+            output_matrix[trialcount,tasknum] = np.where(out_code==1)[0][0]
 
             trialcount += 1
             
     # Pad output with 2 additional units for pretraining tasks
-    tmp_zeros = np.zeros((2,output_matrix.shape[1],output_matrix.shape[2]))
-    output_matrix = np.vstack((output_matrix,tmp_zeros))
+    #tmp_zeros = np.zeros((2,output_matrix.shape[1],output_matrix.shape[2]))
+    #output_matrix = np.vstack((output_matrix,tmp_zeros))
     return input_matrix, output_matrix 
 
 def createSensoryInputs(nStims=2):
@@ -878,18 +768,19 @@ def create_motorrule_pretraining():
     # Now create motor rule primitives
     for mot in motorCode:
         input_arr = np.zeros((input_size,))
-        output_arr = np.zeros((4,))
+      #  output_arr = np.zeros((4,))
         input_arr[motor_ind[mot]] = 1
-        output_arr[mot] = 1
+        #output_arr[mot] = 1
+        output_matrix.append(mot)
 
         input_matrix.append(input_arr)
-        output_matrix.append(output_arr)
+        #output_matrix.append(output_arr)
     
     input_matrix = np.asarray(input_matrix)
     output_matrix = np.asarray(output_matrix)
     
-    tmp_zeros = np.zeros((output_matrix.shape[0],2))
-    output_matrix = np.hstack((output_matrix,tmp_zeros))
+    #tmp_zeros = np.zeros((output_matrix.shape[0],2))
+    #output_matrix = np.hstack((output_matrix,tmp_zeros))
             
     return input_matrix, output_matrix 
 
@@ -926,13 +817,13 @@ def create_sensorimotor_pretraining():
 
             # Solve task to get the output code
             tmpresp, out_code = _solve_sensorimotor_pretraining_task(taskRuleSet.iloc[tasknum],stimuliSet.iloc[i])
-            output_matrix.append(out_code)
+            output_matrix.append(np.where(out_code)[0][0])
 
     input_matrix = np.asarray(input_matrix)
     output_matrix = np.asarray(output_matrix)
 
-    tmp_zeros = np.zeros((output_matrix.shape[0],2))
-    output_matrix = np.hstack((output_matrix,tmp_zeros))
+    #tmp_zeros = np.zeros((output_matrix.shape[0],2))
+    #output_matrix = np.hstack((output_matrix,tmp_zeros))
             
     return input_matrix, output_matrix 
 
@@ -969,7 +860,7 @@ def create_logicalsensory_pretraining():
 
             # Solve task to get the output code
             tmpresp, out_code = _solve_logicalsensory_pretraining_task(taskRuleSet.iloc[tasknum],stimuliSet.iloc[i])
-            output_matrix.append(out_code)
+            output_matrix.append(np.where(out_code)[0][0])
 
     input_matrix = np.asarray(input_matrix)
     output_matrix = np.asarray(output_matrix)

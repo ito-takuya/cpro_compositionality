@@ -31,7 +31,7 @@ class ANN(torch.nn.Module):
                  learning_rate=0.0001,
                  thresh=0.0,
                  si_c=0,
-                 cuda=False,
+                 device='cpu',
                  lossfunc='MSE'):
 
         # Define general parameters
@@ -39,14 +39,9 @@ class ANN(torch.nn.Module):
         self.num_sensory_inputs =  num_sensory_inputs
         self.num_hidden = num_hidden
         self.num_motor_decision_outputs = num_motor_decision_outputs
-        self.gpu = cuda
         
         # Define entwork architectural parameters
         super(ANN,self).__init__()
-        if cuda:
-            self = self.cuda()
-        else:
-            self = self.cpu()
 
         self.w_in = torch.nn.Linear(num_sensory_inputs+num_rule_inputs,num_hidden)
         self.w_rec = torch.nn.Linear(num_hidden,num_hidden)
@@ -80,6 +75,9 @@ class ANN(torch.nn.Module):
         #### Zenke et al. SI parameters
         self.si_c = si_c           #-> hyperparam: how strong to weigh SI-loss ("regularisation strength")
         self.epsilon = 0.1      #-> dampening parameter: bounds 'omega' when squared parameter-change goes to 0
+
+        self.device = device
+        self.to(device)
     
     def initHidden(self):
         return torch.randn(1, self.num_hidden)
@@ -94,7 +92,7 @@ class ANN(torch.nn.Module):
         rnn_input = self.func(rnn_input)
         # Define rnn private noise/spont_act
         if noise:
-            spont_act = torch.randn(rnn_input.shape, dtype=torch.float)/self.num_hidden
+            spont_act = torch.randn(rnn_input.shape, device=self.device,dtype=torch.float)/self.num_hidden
             # Add private noise to each unit, and add to the input
             rnn_input = rnn_input + spont_act
 
@@ -163,27 +161,26 @@ class ANN(torch.nn.Module):
 
 def train(network, inputs, targets, si=True, dropout=False):
     """Train network"""
-    if network.gpu:
-        inputs = inputs.cuda()
-        targets = targets.cuda()
 
     network.train()
     network.zero_grad()
     network.optimizer.zero_grad()
 
+
     outputs, hidden = network.forward(inputs,noise=True,dropout=dropout)
 
     # Calculate loss
     if isinstance(network.lossfunc,torch.nn.CrossEntropyLoss):
-        tmp_target = []
-        if targets.dim()==1:
-            tmp_target.append(np.where(targets)[0])
-        else:
-            for i in range(targets.shape[0]):
-                tmp_target.append(np.where(targets[i,:])[0][0])
-        tmp_target = np.asarray(tmp_target)
-        tmp_target = torch.from_numpy(tmp_target)
-        loss = network.lossfunc(outputs,tmp_target)
+       # tmp_target = []
+       # if targets.dim()==1:
+       #     tmp_target.append(torch.where(targets)[0])
+       # else:
+       #     for i in range(targets.shape[0]):
+       #         tmp_target.append(torch.where(targets[i,:])[0][0])
+        #tmp_target = np.asarray(tmp_target)
+        #tmp_target = torch.from_numpy(tmp_target)
+        #loss = network.lossfunc(outputs,tmp_target)
+        loss = network.lossfunc(outputs,targets)
         loss = torch.mean(loss)
     else:
         loss = network.lossfunc(outputs,targets)
@@ -195,8 +192,8 @@ def train(network, inputs, targets, si=True, dropout=False):
     # Backprop and update weights
     loss.backward()
     network.optimizer.step() # Update parameters using optimizer
-
-    return outputs, targets, loss
+    
+    return outputs, targets, loss.item()
 
 def batch_training(network,train_inputs,train_outputs,acc_cutoff=99.5,si=True,
                      verbose=True):
@@ -213,12 +210,8 @@ def batch_training(network,train_inputs,train_outputs,acc_cutoff=99.5,si=True,
     for batch in np.arange(train_inputs.shape[0]):
         batch_id = batch_ordering[batch]
 
-        if network.gpu:
-            train_input_batch = train_inputs[batch_id,:,:].cuda()
-            train_output_batch = train_outputs[batch_id,:,:].cuda()
-        else:
-            train_input_batch = train_inputs[batch_id,:,:]
-            train_output_batch = train_outputs[batch_id,:,:]
+        train_input_batch = train_inputs[batch_id,:,:]
+        train_output_batch = train_outputs[batch_id,:,:]
 
         outputs, targets, loss = train(network,
                                        train_inputs[batch_id,:,:],
@@ -263,10 +256,6 @@ def task_training(network,train_inputs,train_outputs,acc_cutoff=99.5,si=True,dro
     accuracy = 0
     while accuracy < acc_cutoff:
 
-        if network.gpu:
-            train_inputs = train_inputs.cuda()
-            train_outputs = train_outputs.cuda()
-
         outputs, targets, loss = train(network,
                                        train_inputs,
                                        train_outputs,
@@ -305,7 +294,7 @@ def task_training(network,train_inputs,train_outputs,acc_cutoff=99.5,si=True,dro
         batch += 1
 
         if accuracy>acc_cutoff:
-            if verbose: print('Achieved', accuracy, '% accuracy, greater than cutoff (', acc_cutoff, '%; loss:', loss.detach(),') accuracy... stopping training after', batch, 'batches')
+            if verbose: print('Achieved', accuracy, '% accuracy, greater than cutoff (', acc_cutoff, '%; loss:', loss,') accuracy... stopping training after', batch, 'batches')
 
         nsamples_viewed += train_inputs.shape[0]
 
@@ -318,15 +307,14 @@ def accuracyScore(network,outputs,targets):
     thresh = network.thresh # decision thresh
     acc = [] # accuracy array
     for mb in range(targets.shape[0]):
-        for out in range(targets.shape[1]):
-            if targets[mb,out] == 0: continue
-            response = outputs[mb,out] # Identify response time points
-            target_resp = torch.ByteTensor([out]) # The correct target response
-            max_resp = outputs[mb,:].argmax().byte()
-            if max_resp==target_resp and response>thresh: # Make sure network response is correct respnose, and that it exceeds some threshold
-                acc.append(1.0)
-            else:
-                acc.append(0)
+        response = outputs[mb,targets[mb]] # Identify response time points
+        #target_resp = torch.ByteTensor([targets[mb]]) # The correct target response
+        target_resp = targets[mb] # The correct target response
+        max_resp = outputs[mb,:].argmax().byte()
+        if max_resp==target_resp and response>thresh: # Make sure network response is correct respnose, and that it exceeds some threshold
+            acc.append(1.0)
+        else:
+            acc.append(0)
 
     return acc
 

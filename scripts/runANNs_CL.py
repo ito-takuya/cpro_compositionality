@@ -24,7 +24,7 @@ datadir = '../../data/'
 def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
              num_hidden=128,learning_rate=0.0001,acc_cutoff=95.0,
              save_model=None,verbose=True,
-             lossfunc='MSE',pretraining=False,cuda=False):
+             lossfunc='MSE',pretraining=False,device='cpu'):
     """
     'online training model'
     num_hidden - # of hidden units
@@ -38,8 +38,7 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
                          num_hidden=num_hidden,
                          num_motor_decision_outputs=6,
                          learning_rate=learning_rate,
-                         lossfunc=lossfunc,
-                         cuda=cuda)
+                         lossfunc=lossfunc,device=device)
 
     # Register starting param-values (needed for "intelligent synapses").
     if network.si_c>0:
@@ -105,7 +104,7 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
                                                si=W,dropout=True)
 
             #accuracy = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
-            loss1 = loss1.detach().numpy()
+            loss1 = loss1
             #accuracy1 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
             outputs, targets, loss2 = mod.train(network,
@@ -113,7 +112,7 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
                                                sensorimotor_pretraining_output,
                                                si=W,dropout=True)
 
-            loss2 = loss2.detach().numpy()
+            loss2 = loss2
             #accuracy2 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
 
@@ -125,7 +124,7 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
             #accuracy = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
             if verbose: 
-                if count%20==0:
+                if count%200==0:
                     print('**PRETRAINING**  iteration', count)
                     print('\tloss on logicalsensory task:', loss1)
                     print('\tloss on sensorimotor task:', loss2)
@@ -176,16 +175,16 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
         #    loss2 = loss2.detach().numpy()
         #    accuracy2 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
-
+            network = network.to(device)
             outputs, targets, loss = mod.train(network,
                                                practice_input_batches,
                                                practice_output_batches,
                                                si=W,dropout=True)
-
+            
             accuracy_prac = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
             if verbose: 
-                if count%1==0:
+                if count%10==0:
                     print('**PRACTICED training** iteration', count)
                     print('\tPracticed tasks:', accuracy_prac)
                  #   print('\tSensorimotor tasks:', accuracy2)
@@ -210,7 +209,7 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
                     
             network.update_omega(W, network.epsilon)
 
-        network.optimizer = torch.optim.SGD(network.parameters(), lr=0.05)
+        #network.optimizer = torch.optim.SGD(network.parameters(), lr=0.05)
         online_accuracy = []
         ####
         if learning=='online':
