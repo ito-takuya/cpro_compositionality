@@ -165,7 +165,7 @@ def train(network, inputs, targets, si=True, dropout=False):
     """Train network"""
     if network.gpu:
         inputs = inputs.cuda()
-        outputs = outputs.cuda()
+        targets = targets.cuda()
 
     network.train()
     network.zero_grad()
