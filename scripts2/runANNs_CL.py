@@ -32,7 +32,7 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
     """
 
     #### ANN construction
-    network = mod.ANN(num_rule_inputs=12,
+    network = mod.ANN(num_rule_inputs=11,
                          si_c=si_c,
                          num_sensory_inputs=16,
                          num_hidden=num_hidden,

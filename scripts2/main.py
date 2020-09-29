@@ -61,7 +61,7 @@ def run(args):
 
     # batchfilename = datadir + 'results/model/TrialBatches_4Prac60Nov_FullStimSets'
     batchfilename = datadir + 'results/model/' + batchname
-    experiment = task.Experiment(NUM_INPUT_ELEMENTS=28,
+    experiment = task.Experiment(NUM_INPUT_ELEMENTS=27,
 				 NUM_OUTPUT_ELEMENTS=4,
 				 filename=batchfilename)
 

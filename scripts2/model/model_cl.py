@@ -24,7 +24,7 @@ class ANN(torch.nn.Module):
     """
 
     def __init__(self,
-                 num_rule_inputs=12,
+                 num_rule_inputs=11,
                  num_sensory_inputs=16,
                  num_hidden=128,
                  num_motor_decision_outputs=6,
