@@ -760,16 +760,31 @@ def create_motorrule_pretraining():
     input_matrix = []
     output_matrix = []
 
-    # Now create motor rule primitives
+    # Now create motor rule primitives 
     for mot in motorCode:
         input_arr = np.zeros((input_size,))
-      #  output_arr = np.zeros((4,))
         input_arr[motor_ind[mot]] = 1
         #output_arr[mot] = 1
         output_matrix.append(mot)
 
         input_matrix.append(input_arr)
-        #output_matrix.append(output_arr)
+
+    # Now create motor rule primitives for NOT equivalent
+    for mot in motorCode:
+        input_arr = np.zeros((input_size,))
+        input_arr[motor_ind[mot]] = 1
+        input_arr[0] = 1 # NOT rule
+        #output_arr[mot] = 1
+        if motorCode[mot]=='l_mid':
+            output_matrix.append(1) # l_ind response
+        if motorCode[mot]=='l_ind':
+            output_matrix.append(0)
+        if motorCode[mot]=='r_ind':
+            output_matrix.append(3)
+        if motorCode[mot]=='r_mid':
+            output_matrix.append(2)
+
+        input_matrix.append(input_arr)
     
     input_matrix = np.asarray(input_matrix)
     output_matrix = np.asarray(output_matrix)

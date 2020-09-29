@@ -13,7 +13,6 @@ from importlib import reload
 task = reload(task)
 import time
 import matplotlib.pyplot as plt
-import model.model as mod
 
 
 basedir = '../../../data/'
