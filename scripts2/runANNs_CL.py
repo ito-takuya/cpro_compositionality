@@ -130,7 +130,7 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
                     print('**PRETRAINING**  iteration', count)
                     print('\tloss on logicalsensory task:', loss1)
                     print('\tloss on sensorimotor task:', loss2)
-                    print('\tloss on motor rule pretraining:', loss)
+                    #print('\tloss on motor rule pretraining:', loss)
                   #  print('\taccuracy on practiced tasks:', accuracy)
 
 

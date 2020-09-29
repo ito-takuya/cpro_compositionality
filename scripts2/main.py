@@ -56,9 +56,12 @@ def run(args):
 
 
     #save_model = save_model + '_' + batchname
-    save_model = save_model + '_' + acc_cutoff + 'acc'
+    save_model = save_model + '_' + str(int(acc_cutoff)) + 'acc'
+    if pretraining:
+        save_model = save_model + '_pretraining'
+
     if practice:
-        save_model + '_practice'
+        save_model = save_model + '_practice'
 
     if cuda:
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
