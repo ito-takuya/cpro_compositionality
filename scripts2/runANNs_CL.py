@@ -9,11 +9,9 @@ import os
 import model.model_cl as mod
 import model.task as task
 import time
-import model.analysis as analysis
 from importlib import reload
 mod = reload(mod)
 task = reload(task)
-analysis = reload(analysis)
 import torch
 import pandas as pd
 #from torch.autograd import Variable
