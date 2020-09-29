@@ -69,10 +69,18 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
         logicalsensory_pretraining_input = experiment.logicalsensory_pretraining_input
         logicalsensory_pretraining_output= experiment.logicalsensory_pretraining_output
 
-#        practice_input_batches = experiment.practice_input_batches
-#        practice_output_batches = experiment.practice_output_batches        
+        practice_input_batches = experiment.practice_input_batches
+        practice_output_batches = experiment.practice_output_batches        
         
         ##### First motor rule only pretraining
+        loss = 1
+        while loss>0.01: 
+
+            #### Motor rule pretraining
+            outputs, targets, loss = mod.train(network,
+                                               pretraining_input,
+                                               pretraining_output,
+                                               si=W,dropout=True)
         #for i in range(nbatches_pretraining):
         #    outputs, targets, loss = mod.train(network,
         #                                       pretraining_input,
@@ -86,7 +94,6 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
         ##### Now train on simple logicalsensory rule pretraining
         loss1 = 1
         loss2 = 1
-        loss = 0
         count = 0
         while loss1>0.01 or loss2>0.01 or loss>0.01: 
 
@@ -95,7 +102,6 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
             #                                   pretraining_input,
             #                                   pretraining_output,
             #                                   si=W,dropout=True)
-            #loss = loss.detach().numpy()
 
             #### Logical sensory task pretraining
             outputs, targets, loss1 = mod.train(network,
@@ -104,7 +110,6 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
                                                si=W,dropout=True)
 
             #accuracy = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
-            loss1 = loss1
             #accuracy1 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
             outputs, targets, loss2 = mod.train(network,
@@ -112,7 +117,6 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
                                                sensorimotor_pretraining_output,
                                                si=W,dropout=True)
 
-            loss2 = loss2
             #accuracy2 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
 
@@ -128,7 +132,7 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
                     print('**PRETRAINING**  iteration', count)
                     print('\tloss on logicalsensory task:', loss1)
                     print('\tloss on sensorimotor task:', loss2)
-                    #print('\tloss on motor rule pretraining:', loss)
+                    print('\tloss on motor rule pretraining:', loss)
                   #  print('\taccuracy on practiced tasks:', accuracy)
 
 
@@ -145,6 +149,7 @@ def runModel(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
     online_accuracy=[]
     if practice:
         network.optimizer = torch.optim.SGD(network.parameters(), lr=0.025)
+        #network.optimizer = torch.optim.SGD(network.parameters(), lr=0.01)
         #### Load training batches
         if verbose: print('Loading practice and (all tasks) batches')
         practice_input_batches = experiment.practice_input_batches
