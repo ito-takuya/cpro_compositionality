@@ -31,7 +31,7 @@ parser.add_argument('--num_hidden', type=int, default=256, help="number of units
 parser.add_argument('--learning', type=str, default=None, help="type of learning performed *after* practiced training")
 parser.add_argument('--learning_rate', type=float, default=0.001, help="learning rate for pretraining sessions (ADAM default)")
 parser.add_argument('--acc_cutoff', type=float, default=95.0, help="condition for exiting ANN training")
-parser.add_argument('--save_model', type=str, default="ANN", help='string name to output models')
+parser.add_argument('--save_model', type=str, default=None, help='string name to output models')
 parser.add_argument('--batchname', type=str, default='Experiment_FullTaskSet_11LogicInputs', help='string name for the experiment filename')
 parser.add_argument('--lossfunc', type=str, default='CrossEntropy', help='default: CrossEntropy, options: MSE or CrossEntropy, which determines the loss function')
 parser.add_argument('--pretraining', action='store_true', help="pretrain network on simple tasks to improve compositionality")
