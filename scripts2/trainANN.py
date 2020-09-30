@@ -19,7 +19,7 @@ import pandas as pd
 
 datadir = '../../data/'
 
-def train(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
+def train(experiment,si_c=0,datadir=datadir,practice=True,
              num_hidden=128,learning_rate=0.0001,acc_cutoff=95.0,
              save_model=None,verbose=True,save=True,
              lossfunc='MSE',pretraining=False,device='cpu'):
@@ -67,9 +67,6 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
         logicalsensory_pretraining_input = experiment.logicalsensory_pretraining_input
         logicalsensory_pretraining_output= experiment.logicalsensory_pretraining_output
 
-        practice_input_batches = experiment.practice_input_batches
-        practice_output_batches = experiment.practice_output_batches        
-        
         ##### First motor rule only pretraining
         loss = 1
         while loss>0.01: 
@@ -117,21 +114,13 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
 
             #accuracy2 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
-
-#            outputs, targets, loss3 = mod.train(network,
-#                                                practice_input_batches,
-#                                                practice_output_batches,
-#                                                si=W,dropout=True)
-
-            #accuracy = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
-
-            if verbose: 
-                if count%200==0:
-                    print('**PRETRAINING**  iteration', count)
-                    print('\tloss on logicalsensory task:', loss1)
-                    print('\tloss on sensorimotor task:', loss2)
-                    #print('\tloss on motor rule pretraining:', loss)
-                  #  print('\taccuracy on practiced tasks:', accuracy)
+            #if verbose: 
+            #    if count%200==0:
+            #        print('**PRETRAINING**  iteration', count)
+            #        print('\tloss on logicalsensory task:', loss1)
+            #        print('\tloss on sensorimotor task:', loss2)
+            #        #print('\tloss on motor rule pretraining:', loss)
+            #      #  print('\taccuracy on practiced tasks:', accuracy)
 
 
             count += 1
@@ -176,21 +165,28 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,learning='online',
 
         #    loss2 = loss2.detach().numpy()
         #    accuracy2 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
+            #for i in range(len(experiment.practicedRuleSet)):
+            #    outputs, targets, loss = mod.train(network,
+            #                                       prac_input[i,:,:],
+            #                                       prac_target2d[i,:,:],
+            #                                       si=W,dropout=True)
+            #    if loss<0.1:
+            #        tmp_acc = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
-            network = network.to(device)
             outputs, targets, loss = mod.train(network,
                                                prac_input2d,
                                                prac_target2d,
                                                si=W,dropout=True)
-            
-            accuracy_prac = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
+            #if loss<0.1:
+            accuracy_prac = mod.accuracyScore(network,outputs,targets)*100.0
+            #accuracy_prac = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
-            if verbose: 
-                if count%10==0:
-                    print('**PRACTICED training** iteration', count)
-                    print('\tPracticed tasks:', accuracy_prac)
-                 #   print('\tSensorimotor tasks:', accuracy2)
-                 #   print('\tLogicalsensory tasks:', accuracy1)
+            #if verbose: 
+            #    if count%100==0:
+            #        print('**PRACTICED training** iteration', count)
+            #        print('\tPracticed tasks:', accuracy_prac)
+            #     #   print('\tSensorimotor tasks:', accuracy2)
+            #     #   print('\tLogicalsensory tasks:', accuracy1)
 
             count += 1
 

@@ -304,17 +304,26 @@ def accuracyScore(network,outputs,targets):
     """
     return accuracy given a set of outputs and targets
     """
+    #thresh = network.thresh # decision thresh
+    #acc = [] # accuracy array
+    #for mb in range(targets.shape[0]):
+    #    response = outputs[mb,targets[mb]] # Identify response time points
+    #    #target_resp = torch.ByteTensor([targets[mb]]) # The correct target response
+    #    target_resp = targets[mb] # The correct target response
+    #    max_resp = outputs[mb,:].argmax().byte()
+    #    if max_resp==target_resp and response>thresh: # Make sure network response is correct respnose, and that it exceeds some threshold
+    #        acc.append(1.0)
+    #    else:
+    #        acc.append(0)
+
     thresh = network.thresh # decision thresh
     acc = [] # accuracy array
-    for mb in range(targets.shape[0]):
-        response = outputs[mb,targets[mb]] # Identify response time points
-        #target_resp = torch.ByteTensor([targets[mb]]) # The correct target response
-        target_resp = targets[mb] # The correct target response
-        max_resp = outputs[mb,:].argmax().byte()
-        if max_resp==target_resp and response>thresh: # Make sure network response is correct respnose, and that it exceeds some threshold
-            acc.append(1.0)
-        else:
-            acc.append(0)
+    if outputs.dim()==2:
+        max_resp = torch.argmax(outputs,1)
+    else:
+        max_resp = torch.argmax(outputs)
+    acc = max_resp==targets
+    acc = torch.mean(acc.float()).detach().item()
 
     return acc
 

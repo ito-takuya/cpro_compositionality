@@ -7,7 +7,7 @@ np.set_printoptions(suppress=True)
 import os
 #os.sys.path.append('model/')
 
-import model.model_cl as mod
+import model.model as mod
 import model.task as task
 import time
 import model.analysis as analysis
@@ -32,7 +32,7 @@ parser.add_argument('--test_all_tasks', type=str, default='store_true', help="it
 parser.add_argument('--learning_rate', type=float, default=0.001, help="learning rate for pretraining sessions (ADAM default)")
 parser.add_argument('--acc_cutoff', type=float, default=95.0, help="condition for exiting ANN training")
 parser.add_argument('--save_model', type=str, default="ANN", help='string name to output models')
-parser.add_argument('--save', type=str, default='store_true', help="save or don't save model")
+parser.add_argument('--save', action='store_true', help="save or don't save model")
 parser.add_argument('--batchname', type=str, default='Experiment_FullTaskSet_11LogicInputs', help='string name for the experiment filename')
 parser.add_argument('--lossfunc', type=str, default='CrossEntropy', help='default: CrossEntropy, options: MSE or CrossEntropy, which determines the loss function')
 parser.add_argument('--pretraining', action='store_true', help="pretrain network on simple tasks to improve compositionality")
@@ -130,6 +130,8 @@ def run(args):
     if cuda:
         sim1_inputs = sim1_inputs.cuda()
         sim2_inputs = sim2_inputs.cuda()
+        sim1_targets = sim1_targets.cuda()
+        sim2_targets = sim2_targets.cuda()
 
     #### Load pretraining data
     if pretraining:
@@ -167,12 +169,11 @@ def run(args):
     df['Accuracy'] = []
     df['Condition'] = []
     df['Simulation'] = []
-    df['Trials viewed'] = []
     #### Run simulation
     for i in range(nsimulations):
         modelname = save_model + str(i) + '.pt'
         print('**SIMULATION**', i, 'saving to file:', modelname, '| cuda:', cuda)
-        network, acc = trainANN.train(experiment,si_c=si_c,acc_cutoff=acc_cutoff,learning=learning,datadir=datadir,practice=practice,
+        network, acc = trainANN.train(experiment,si_c=si_c,acc_cutoff=acc_cutoff,datadir=datadir,practice=practice,
                                       num_hidden=num_hidden,learning_rate=learning_rate,save=save,
                                       save_model=modelname,verbose=True,lossfunc=lossfunc,pretraining=pretraining,device=device)
 
@@ -180,10 +181,10 @@ def run(args):
         network.eval()
             
         # practice trials
-        outputs, hidden = network.forward(pracinput_2d,noise=False)
+        outputs, hidden = network.forward(prac_input2d,noise=False)
         #### Set to 0 the pretraining practice outputs
         outputs[:,4:] = 0
-        acc = np.mean(mod.accuracyScore(network,outputs,test_prac_targets))
+        acc = mod.accuracyScore(network,outputs,prac_target2d)
         df['Accuracy'].append(acc)
         df['Condition'].append('Practiced')
         df['Simulation'].append(i)
@@ -193,7 +194,7 @@ def run(args):
         outputs, hidden = network.forward(sim2_inputs,noise=False)
         #### Set to 0 the pretraining practice outputs
         outputs[:,4:] = 0
-        acc = np.mean(mod.accuracyScore(network,outputs,sim2_targets))
+        acc = mod.accuracyScore(network,outputs,sim2_targets)
         df['Accuracy'].append(acc)
         df['Condition'].append('2-rule overlap')
         df['Simulation'].append(i)
@@ -203,7 +204,7 @@ def run(args):
         outputs, hidden = network.forward(sim1_inputs,noise=False)
         #### Set to 0 the pretraining practice outputs
         outputs[:,4:] = 0
-        acc = np.mean(mod.accuracyScore(network,outputs,sim1_targets))
+        acc = mod.accuracyScore(network,outputs,sim1_targets)
         df['Accuracy'].append(acc)
         df['Condition'].append('1-rule overlap')
         df['Simulation'].append(i)
@@ -211,6 +212,14 @@ def run(args):
 
     df = pd.DataFrame(df) 
     df.to_csv(save_model + '.csv')
+
+    prac_acc = np.mean(df.loc[df['Condition']=='Practiced'].Accuracy.values) 
+    rule2_acc = np.mean(df.loc[df['Condition']=='2-rule overlap'].Accuracy.values) 
+    rule1_acc = np.mean(df.loc[df['Condition']=='1-rule overlap'].Accuracy.values) 
+    print('**Averages across simulations**')
+    print('\tPracticed accuracy:', prac_acc)
+    print('\t2-rule overlap accuracy:', rule2_acc)
+    print('\t1-rule overlap accuracy:', rule1_acc)
 
 if __name__ == '__main__':
     args = parser.parse_args()
