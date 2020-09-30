@@ -113,17 +113,17 @@ def rsa_behavior(network,tasks_input,tasks_output,measure='corr'):
 
     # Now run a forward pass for all activations
     responses_per_task = np.zeros((network.num_hidden,64,4)) # tasks by motor responses
-    for t in range(output_matrix.shape[1]):
+    for t in range(tasks_output.shape[0]):
         outputs, hidden = network.forward(tasks_input[t,:,:],noise=False)
-        responses = torch.unique(tasks_output[:,t])
+        responses = torch.unique(tasks_output[t,:])
         for resp in responses:
-            ind = torch.where(output_matrix[:,t]==resp)[0]
-            responses_per_task[:,t,int(resp)] = torch.mean(hidden[:,ind].detach().numpy(),axis=1) # compute the mean activation for this response
+            resp = resp.item()
+            ind = torch.where(tasks_output[t,:]==resp)[0]
+            responses_per_task[:,t,int(resp)] = np.mean(hidden[:,ind].detach().numpy(),axis=1) # compute the mean activation for this response
 
-    response_activations = torch.mean(responses_per_task,axis=1)
+    response_activations = np.mean(responses_per_task,axis=1)
     response_activations = response_activations.T # transpose to response x num_hidden
 
-    response_activations = response_activations.detach().numpy()
     
     if measure=='corr':
         rsm = np.corrcoef(response_activations)
