@@ -12,7 +12,7 @@ import model.task as task
 import time
 import model.analysis as analysis
 from importlib import reload
-import runANNs_CL as runModel
+import trainANN as trainANN
 mod = reload(mod)
 task = reload(task)
 analysis = reload(analysis)
@@ -28,10 +28,11 @@ parser.add_argument('--nsimulations', type=int, default=20, help='number of mode
 parser.add_argument('--si_c', type=float, default=0.0, help='synaptic intelligence parameter (Zenke et al. 2017); default=0, meaning no synaptic intelligence implemented')
 parser.add_argument('--practice', action='store_true', help="Train on 4 practiced tasks")
 parser.add_argument('--num_hidden', type=int, default=256, help="number of units in hidden layers")
-parser.add_argument('--learning', type=str, default=None, help="type of learning performed *after* practiced training")
+parser.add_argument('--test_all_tasks', type=str, default='store_true', help="iterative training and then testing performance on each task separately")
 parser.add_argument('--learning_rate', type=float, default=0.001, help="learning rate for pretraining sessions (ADAM default)")
 parser.add_argument('--acc_cutoff', type=float, default=95.0, help="condition for exiting ANN training")
 parser.add_argument('--save_model', type=str, default="ANN", help='string name to output models')
+parser.add_argument('--save', type=str, default='store_true', help="save or don't save model")
 parser.add_argument('--batchname', type=str, default='Experiment_FullTaskSet_11LogicInputs', help='string name for the experiment filename')
 parser.add_argument('--lossfunc', type=str, default='CrossEntropy', help='default: CrossEntropy, options: MSE or CrossEntropy, which determines the loss function')
 parser.add_argument('--pretraining', action='store_true', help="pretrain network on simple tasks to improve compositionality")
@@ -43,11 +44,12 @@ def run(args):
     nsimulations = args.nsimulations
     si_c = args.si_c
     practice = args.practice
-    learning = args.learning
+    test_all_tasks = args.test_all_tasks
     num_hidden = args.num_hidden
     learning_rate = args.learning_rate
     acc_cutoff = args.acc_cutoff
     save_model = args.save_model
+    save = args.save
     batchname = args.batchname
     lossfunc = args.lossfunc
     pretraining = args.pretraining
@@ -79,27 +81,30 @@ def run(args):
     test_prac_inputs, test_prac_targets = task.create_all_trials(experiment.practicedRuleSet)
     test_prac_inputs = torch.from_numpy(test_prac_inputs.T).float()
     test_prac_targets = torch.from_numpy(test_prac_targets.T).long()
-    test_prac_inputs = test_prac_inputs.reshape(test_prac_inputs.shape[0]*test_prac_inputs.shape[1],test_prac_inputs.shape[2])
-    test_prac_targets = torch.flatten(test_prac_targets)
     if cuda:
         test_prac_inputs = test_prac_inputs.cuda()
         test_prac_targets = test_prac_targets.cuda()
+    
+    prac_input2d = test_prac_inputs.reshape(test_prac_inputs.shape[0]*test_prac_inputs.shape[1],test_prac_inputs.shape[2])
+    prac_target2d = torch.flatten(test_prac_targets)
 
-    experiment.practice_input_batches = test_prac_inputs 
-    experiment.practice_output_batches = test_prac_targets
+    experiment.prac_input2d = prac_input2d
+    experiment.prac_target2d = prac_target2d
+    # Also store the unflattened version 
+    experiment.test_prac_inputs = test_prac_inputs
+    experiment.test_prac_targets = test_prac_targets
 
 
-    if learning=='online' or learning=='batch':
-        full_inputs, full_targets = task.create_all_trials(experiment.taskRuleSet)
-        full_inputs = torch.from_numpy(full_inputs.T).float()
-        full_targets = torch.from_numpy(full_targets.T).long()
-        full_inputs = full_inputs.reshape(full_inputs.shape[0]*full_inputs.shape[1],full_inputs.shape[2])
-        full_targets = torch.flatten(full_targets)
+
+    if test_all_tasks:
+        novel_inputs, novel_targets = task.create_all_trials(experiment.novelRuleSet)
+        novel_inputs = torch.from_numpy(novel_inputs.T).float() # task x trials/stimuli x input units
+        novel_targets = torch.from_numpy(novel_targets.T).long() # task x stimuli
         if cuda:
-            full_inputs = full_inputs.cuda()
-            full_targets = full_targets.cuda()
-        experiment.online_input_batches = full_inputs 
-        experiment.online_output_batches = full_targets
+            novel_inputs = novel_inputs.cuda()
+            novel_targets = novel_targets.cuda()
+        experiment.novel_inputs = novel_inputs 
+        experiment.novel_targets = novel_targets
 
     #test_prac_inputs, test_prac_targets = task.create_random_trials(experiment.practicedRuleSet,ntrials_per_task,np.random.randint(1000000))
     #test_prac_inputs = torch.from_numpy(test_prac_inputs.T).float()
@@ -108,18 +113,11 @@ def run(args):
     #### Now identify overlap with practiced tasks in the novel task set
     taskSim1Set, taskSim2Set = experiment.taskSimilarity(experiment.practicedRuleSet,experiment.novelRuleSet)
 
-    # Make even the number of trials for each task set
-    # ntrials1 = int((ntrials*len(trialobj.practicedRuleSet))/len(taskSim1Set))
-    # ntrials2 = int((ntrials*len(trialobj.practicedRuleSet))/len(taskSim2Set))
-    # ntrials1 = ntrials
-    # ntrials2 = ntrials
-
     #### Simulate task sets with 2-rule similarities
     sim2_inputs, sim2_targets = task.create_all_trials(taskSim2Set)
     sim2_inputs = torch.from_numpy(sim2_inputs.T).float()
     sim2_targets = torch.from_numpy(sim2_targets.T).long()
     sim2_inputs = sim2_inputs.reshape(sim2_inputs.shape[0]*sim2_inputs.shape[1],sim2_inputs.shape[2])
-    #sim2_targets = sim2_targets.reshape(sim2_targets.shape[0]*sim2_targets.shape[1],sim2_targets.shape[2])
     sim2_targets = torch.flatten(sim2_targets)
 
     #### Simulate task sets with 1-rule similarities
@@ -127,7 +125,6 @@ def run(args):
     sim1_inputs = torch.from_numpy(sim1_inputs.T).float()
     sim1_targets = torch.from_numpy(sim1_targets.T).long()
     sim1_inputs = sim1_inputs.reshape(sim1_inputs.shape[0]*sim1_inputs.shape[1],sim1_inputs.shape[2])
-    #sim1_targets = sim1_targets.reshape(sim1_targets.shape[0]*sim1_targets.shape[1],sim1_targets.shape[2])
     sim1_targets = torch.flatten(sim1_targets)
 
     if cuda:
@@ -172,48 +169,44 @@ def run(args):
     df['Simulation'] = []
     df['Trials viewed'] = []
     #### Run simulation
-    online_accuracies = []
     for i in range(nsimulations):
         modelname = save_model + str(i) + '.pt'
         print('**SIMULATION**', i, 'saving to file:', modelname, '| cuda:', cuda)
-        network_prac2nov, ntrials_viewed, acc = runModel.runModel(experiment,si_c=si_c,acc_cutoff=acc_cutoff,learning=learning,datadir=datadir,practice=practice,
-                                                                  num_hidden=num_hidden,learning_rate=learning_rate,
-                                                                  save_model=modelname,verbose=True,lossfunc=lossfunc,pretraining=pretraining,device=device)
+        network, acc = trainANN.train(experiment,si_c=si_c,acc_cutoff=acc_cutoff,learning=learning,datadir=datadir,practice=practice,
+                                      num_hidden=num_hidden,learning_rate=learning_rate,save=save,
+                                      save_model=modelname,verbose=True,lossfunc=lossfunc,pretraining=pretraining,device=device)
 
-        network_prac2nov.eval()
-        online_accuracies.append(acc)
+
+        network.eval()
             
         # practice trials
-        outputs, hidden = network_prac2nov.forward(test_prac_inputs,noise=False)
+        outputs, hidden = network.forward(pracinput_2d,noise=False)
         #### Set to 0 the pretraining practice outputs
         outputs[:,4:] = 0
-        acc = np.mean(mod.accuracyScore(network_prac2nov,outputs,test_prac_targets))
+        acc = np.mean(mod.accuracyScore(network,outputs,test_prac_targets))
         df['Accuracy'].append(acc)
         df['Condition'].append('Practiced')
         df['Simulation'].append(i)
-        df['Trials viewed'].append(ntrials_viewed)
         print('\t Practiced acc =',acc)
         
         # 2-rule overlap
-        outputs, hidden = network_prac2nov.forward(sim2_inputs,noise=False)
+        outputs, hidden = network.forward(sim2_inputs,noise=False)
         #### Set to 0 the pretraining practice outputs
         outputs[:,4:] = 0
-        acc = np.mean(mod.accuracyScore(network_prac2nov,outputs,sim2_targets))
+        acc = np.mean(mod.accuracyScore(network,outputs,sim2_targets))
         df['Accuracy'].append(acc)
         df['Condition'].append('2-rule overlap')
         df['Simulation'].append(i)
-        df['Trials viewed'].append(ntrials_viewed)
         print('\t 2-rule overlap acc =',acc)    
 
         # 1-rule overlap
-        outputs, hidden = network_prac2nov.forward(sim1_inputs,noise=False)
+        outputs, hidden = network.forward(sim1_inputs,noise=False)
         #### Set to 0 the pretraining practice outputs
         outputs[:,4:] = 0
-        acc = np.mean(mod.accuracyScore(network_prac2nov,outputs,sim1_targets))
+        acc = np.mean(mod.accuracyScore(network,outputs,sim1_targets))
         df['Accuracy'].append(acc)
         df['Condition'].append('1-rule overlap')
         df['Simulation'].append(i)
-        df['Trials viewed'].append(ntrials_viewed)
         print('\t 1-rule overlap acc =',acc)   
 
     df = pd.DataFrame(df) 
