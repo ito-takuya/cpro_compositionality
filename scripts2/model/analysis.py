@@ -93,7 +93,7 @@ def rsa_context(network,batchfilename='../../data/results/model/Experiment_FullT
 
     return hidden, rsm
 
-def rsa_behavior(network,experiment,measure='corr'):
+def rsa_behavior(network,tasks_input,tasks_output,measure='corr'):
     """
     For each input element, inject a single element representing each rule/stimulus
     Observe the representational space
@@ -109,22 +109,21 @@ def rsa_behavior(network,experiment,measure='corr'):
     stim_ind = np.arange(network.num_rule_inputs, network.num_rule_inputs+network.num_sensory_inputs)
     input_size = len(rule_ind) + len(stim_ind)
 
-    input_matrix, output_matrix = experiment.input_matrix, experiment.output_matrix
-    
     #input_matrix, output_matrix = task.create_all_trials(experiment.taskRuleSet)
 
-    input_matrix = torch.from_numpy(input_matrix).float()
     # Now run a forward pass for all activations
     responses_per_task = np.zeros((network.num_hidden,64,4)) # tasks by motor responses
     for t in range(output_matrix.shape[1]):
-        outputs, hidden = network.forward(input_matrix[:,:,t].T,noise=False)
-        responses = np.unique(output_matrix[:,t])
+        outputs, hidden = network.forward(tasks_input[t,:,:],noise=False)
+        responses = torch.unique(tasks_output[:,t])
         for resp in responses:
-            ind = np.where(output_matrix[:,t]==resp)[0]
-            responses_per_task[:,t,int(resp)] = np.mean(hidden[:,ind].detach().numpy(),axis=1) # compute the mean activation for this response
+            ind = torch.where(output_matrix[:,t]==resp)[0]
+            responses_per_task[:,t,int(resp)] = torch.mean(hidden[:,ind].detach().numpy(),axis=1) # compute the mean activation for this response
 
-    response_activations = np.mean(responses_per_task,axis=1)
+    response_activations = torch.mean(responses_per_task,axis=1)
     response_activations = response_activations.T # transpose to response x num_hidden
+
+    response_activations = response_activations.detach().numpy()
     
     if measure=='corr':
         rsm = np.corrcoef(response_activations)
