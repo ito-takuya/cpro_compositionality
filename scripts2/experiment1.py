@@ -28,7 +28,6 @@ parser.add_argument('--nsimulations', type=int, default=20, help='number of mode
 parser.add_argument('--si_c', type=float, default=0.0, help='synaptic intelligence parameter (Zenke et al. 2017); default=0, meaning no synaptic intelligence implemented')
 parser.add_argument('--practice', action='store_true', help="Train on 4 practiced tasks")
 parser.add_argument('--num_hidden', type=int, default=256, help="number of units in hidden layers")
-parser.add_argument('--test_all_tasks', type=str, default='store_true', help="iterative training and then testing performance on each task separately")
 parser.add_argument('--learning_rate', type=float, default=0.001, help="learning rate for pretraining sessions (ADAM default)")
 parser.add_argument('--acc_cutoff', type=float, default=95.0, help="condition for exiting ANN training")
 parser.add_argument('--save_model', type=str, default="ANN", help='string name to output models')
@@ -44,7 +43,6 @@ def run(args):
     nsimulations = args.nsimulations
     si_c = args.si_c
     practice = args.practice
-    test_all_tasks = args.test_all_tasks
     num_hidden = args.num_hidden
     learning_rate = args.learning_rate
     acc_cutoff = args.acc_cutoff
@@ -95,20 +93,6 @@ def run(args):
     experiment.test_prac_targets = test_prac_targets
 
 
-
-    if test_all_tasks:
-        novel_inputs, novel_targets = task.create_all_trials(experiment.novelRuleSet)
-        novel_inputs = torch.from_numpy(novel_inputs.T).float() # task x trials/stimuli x input units
-        novel_targets = torch.from_numpy(novel_targets.T).long() # task x stimuli
-        if cuda:
-            novel_inputs = novel_inputs.cuda()
-            novel_targets = novel_targets.cuda()
-        experiment.novel_inputs = novel_inputs 
-        experiment.novel_targets = novel_targets
-
-    #test_prac_inputs, test_prac_targets = task.create_random_trials(experiment.practicedRuleSet,ntrials_per_task,np.random.randint(1000000))
-    #test_prac_inputs = torch.from_numpy(test_prac_inputs.T).float()
-    #test_prac_targets = torch.from_numpy(test_prac_targets.T).float()
 
     #### Now identify overlap with practiced tasks in the novel task set
     taskSim1Set, taskSim2Set = experiment.taskSimilarity(experiment.practicedRuleSet,experiment.novelRuleSet)

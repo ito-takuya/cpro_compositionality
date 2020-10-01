@@ -78,12 +78,12 @@ def rsa_context(network,batchfilename='../../data/results/model/Experiment_FullT
                     input_matrix[taskcount,rule_ind] = np.asarray(nov_ruleset_arr[ind][0][0].split(' '),dtype=float) 
                     taskcount += 1
 
-    input_matrix = torch.from_numpy(input_matrix).float()
+    input_matrix = torch.from_numpy(input_matrix).float().to(network.device)
     # Now run a forward pass for all activations
     outputs, hidden = network.forward(input_matrix,noise=False)
 
     ## Now plot RSM
-    hidden = hidden.detach().numpy()
+    hidden = hidden.detach().cpu().numpy()
     
     if measure=='corr':
         rsm = np.corrcoef(hidden)
@@ -119,7 +119,7 @@ def rsa_behavior(network,tasks_input,tasks_output,measure='corr'):
         for resp in responses:
             resp = resp.item()
             ind = torch.where(tasks_output[t,:]==resp)[0]
-            responses_per_task[:,t,int(resp)] = np.mean(hidden[:,ind].detach().numpy(),axis=1) # compute the mean activation for this response
+            responses_per_task[:,t,int(resp)] = np.mean(hidden[:,ind].detach().cpu().numpy(),axis=1) # compute the mean activation for this response
 
     response_activations = np.mean(responses_per_task,axis=1)
     response_activations = response_activations.T # transpose to response x num_hidden

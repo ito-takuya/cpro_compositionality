@@ -134,8 +134,8 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
     accuracy = 0
     online_accuracy=[]
     if practice:
-        network.optimizer = torch.optim.SGD(network.parameters(), lr=0.025)
-        #network.optimizer = torch.optim.SGD(network.parameters(), lr=0.01)
+        #network.optimizer = torch.optim.SGD(network.parameters(), lr=0.025)
+        network.optimizer = torch.optim.Adam(network.parameters(), lr=0.0001)
         #### Load training batches
         if verbose: print('Loading practice and (all tasks) batches')
         prac_input2d = experiment.prac_input2d
@@ -195,48 +195,5 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
             torch.save(network,datadir + 'results/model/' + save_model)
 
     return network, online_accuracy
-
-
-def eval(experiment,network,datadir=datadir,
-             save_model=None,verbose=True,
-             device='cpu'):
-    """
-    """
-    ####
-
-    prac_inputs = experiment.test_prac_inputs
-    prac_targets = experiment.test_prac_targets
-    novel_inputs = experiment.novel_inputs 
-    novel_targets = experiment.novel_targets
-
-    network.eval()
-            
-    for i in range(len(experiment.practicedRuleSet)):
-        outputs, hidden = network.forward(prac_inputs[i,:,:],noise=False)
-        outputs[:,4:] = 0
-        acc = np.mean(mod.accuracyScore(network,outputs,prac_targets))
-        df['Accuracy'].append(acc)
-        df['Condition'].append('Practiced')
-        df['Logic'].append(experiment.practicedRuleSet.Logic[i])
-        df['Sensory'].append(experiment.practicedRuleSet.Sensory[i])
-        df['Motor'].append(experiment.practicedRuleSet.Motor[i])
-
-    for i in range(len(experiment.novelRuleSet)):
-        outputs, hidden = network.forward(novel_inputs[i,:,:],noise=False)
-        outputs[:,4:] = 0
-        acc = np.mean(mod.accuracyScore(network,outputs,prac_targets))
-        df['Accuracy'].append(acc)
-        df['Condition'].append('Novel')
-        df['Logic'].append(experiment.novelRuleSet.Logic[i])
-        df['Sensory'].append(experiment.novelRuleSet.Sensory[i])
-        df['Motor'].append(experiment.novelRuleSet.Motor[i])
-
-    if save_model is not None:
-        torch.save(network,datadir + 'results/model/' + save_model)
-
-    return network, online_accuracy
-
-
-
 
 

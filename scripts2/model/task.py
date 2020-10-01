@@ -81,15 +81,15 @@ class Experiment(object):
         """
         adds additional novel tasks to the 'practicedRuleSet' variable
         """
-        ind = np.random.choice(self.novelRuleSet.index,n,replace=False)
+        novel2prac_ind = np.random.choice(self.novelRuleSet.index,n,replace=False)
 
         # Add to random tasks to the practiced set
-        practicedRuleSet = self.practicedRuleSet.append(self.novelRuleSet,ignore_index=True)
+        practicedRuleSet = self.practicedRuleSet.append(self.novelRuleSet.iloc[novel2prac_ind],ignore_index=True)
 
-        novelRuleSet = self.novelRuleSet.drop(ind,axis='index')
+        novelRuleSet = self.novelRuleSet.drop(novel2prac_ind,axis='index')
         novelRuleSet = novelRuleSet.reset_index(drop=True) # reset index, don't create new index column
 
-        return practicedRuleSet, novelRuleSet
+        return practicedRuleSet, novelRuleSet, novel2prac_ind
 
 
 
