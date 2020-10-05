@@ -63,39 +63,8 @@ def run(args):
     else:
         device = 'cpu'
 
-    # batchfilename = datadir + 'results/model/TrialBatches_4Prac60Nov_FullStimSets'
     batchfilename = datadir + 'results/model/' + batchname
     experiment = task.Experiment(filename=batchfilename)
-
-
-    #########################################
-    print("create task sets -- all simulations start with the same base 'practiced set'")
-    #### Construct test set for 'practiced' trials based on task similarity
-    prac_inputs, prac_targets = task.create_all_trials(experiment.practicedRuleSet)
-    prac_inputs = torch.from_numpy(prac_inputs.T).float()
-    prac_targets = torch.from_numpy(prac_targets.T).long()
-    if cuda:
-        prac_inputs = prac_inputs.cuda()
-        prac_targets = prac_targets.cuda()
-    
-    prac_input2d = prac_inputs.reshape(prac_inputs.shape[0]*prac_inputs.shape[1],prac_inputs.shape[2])
-    prac_target2d = torch.flatten(prac_targets)
-
-    experiment.prac_input2d = prac_input2d
-    experiment.prac_target2d = prac_target2d
-    # Also store the unflattened version 
-    experiment.prac_inputs = prac_inputs
-    experiment.prac_targets = prac_targets
-
-    #### Load novel tasks
-    novel_inputs, novel_targets = task.create_all_trials(experiment.novelRuleSet)
-    novel_inputs = torch.from_numpy(novel_inputs.T).float() # task x trials/stimuli x input units
-    novel_targets = torch.from_numpy(novel_targets.T).long() # task x stimuli
-    if cuda:
-        novel_inputs = novel_inputs.cuda()
-        novel_targets = novel_targets.cuda()
-    experiment.novel_inputs = novel_inputs 
-    experiment.novel_targets = novel_targets
 
     #### Load pretraining task data
     if pretraining:
@@ -127,38 +96,69 @@ def run(args):
         experiment.logicalsensory_pretraining_output = logicalsensory_pretraining_output
 
 
-    full_inputs = torch.cat((prac_inputs,novel_inputs),0)
-    full_targets = torch.cat((prac_targets,novel_targets),0)
-
 
     ###########################################
     #### run simulations
-    df_group = {}
-    df_group['Accuracy'] = []
-    df_group['ContextDimensionality'] = []
-    df_group['ResponseDimensionality'] = []
-    df_group['Simulation'] = []
-    df_group['NumPracticedTasks'] = []
+    for sim in range(nsimulations):
 
-    df_pertask = {}
-    df_pertask['Accuracy'] = []
-    df_pertask['Condition'] = []
-    df_pertask['Logic'] = []
-    df_pertask['Sensory'] = []
-    df_pertask['Motor'] = []
-    df_pertask['Simulation'] = []
-    df_pertask['NumPracticedTasks'] = []
-    n_practiced_tasks = len(experiment.practicedRuleSet)
-    while n_practiced_tasks < len(experiment.taskRuleSet):
+        #########################################
+        # Load or reload practiced and novel tasks (each simulation needs to refresh task data
+        batchfilename = datadir + 'results/model/' + batchname
+        # Reset practiced and novel task sets
+        orig = task.Experiment(filename=batchfilename)
+        experiment.practicedRuleSet = orig.practicedRuleSet
+        experiment.novelRuleSet = orig.novelRuleSet
+        #### Construct test set for 'practiced' trials based on task similarity
+        prac_inputs, prac_targets = task.create_all_trials(experiment.practicedRuleSet)
+        prac_inputs = torch.from_numpy(prac_inputs.T).float()
+        prac_targets = torch.from_numpy(prac_targets.T).long()
+        if cuda:
+            prac_inputs = prac_inputs.cuda()
+            prac_targets = prac_targets.cuda()
+        
+        prac_input2d = prac_inputs.reshape(prac_inputs.shape[0]*prac_inputs.shape[1],prac_inputs.shape[2])
+        prac_target2d = torch.flatten(prac_targets)
 
-        #### Run simulation
-        avg_nov_acc = []
-        for i in range(nsimulations):
-            modelname = save_model + str(i) + '.pt'
-            if verbose: print('** TRAINING ON', n_practiced_tasks, 'PRACTICED TASKS ** ... simulation', i, ' |', modelname, '| cuda:', cuda)
+        experiment.prac_input2d = prac_input2d
+        experiment.prac_target2d = prac_target2d
+        # Also store the unflattened version 
+        experiment.prac_inputs = prac_inputs
+        experiment.prac_targets = prac_targets
+
+        #### Load novel tasks
+        novel_inputs, novel_targets = task.create_all_trials(experiment.novelRuleSet)
+        novel_inputs = torch.from_numpy(novel_inputs.T).float() # task x trials/stimuli x input units
+        novel_targets = torch.from_numpy(novel_targets.T).long() # task x stimuli
+        if cuda:
+            novel_inputs = novel_inputs.cuda()
+            novel_targets = novel_targets.cuda()
+        experiment.novel_inputs = novel_inputs 
+        experiment.novel_targets = novel_targets
+
+        full_inputs = torch.cat((prac_inputs,novel_inputs),0)
+        full_targets = torch.cat((prac_targets,novel_targets),0)
+
+        df_sim = {}
+        df_sim['Accuracy'] = []
+        df_sim['ContextDimensionality'] = []
+        df_sim['ResponseDimensionality'] = []
+        df_sim['NumPracticedTasks'] = []
+
+        df_pertask = {}
+        df_pertask['Accuracy'] = []
+        df_pertask['Condition'] = []
+        df_pertask['Logic'] = []
+        df_pertask['Sensory'] = []
+        df_pertask['Motor'] = []
+        df_pertask['NumPracticedTasks'] = []
+
+        n_practiced_tasks = len(experiment.practicedRuleSet)
+        while n_practiced_tasks < len(experiment.taskRuleSet):
+            modelname = save_model + str(sim)
+            #if verbose: print('** TRAINING ON', n_practiced_tasks, 'PRACTICED TASKS ** ... simulation', sim, ' |', modelname, '| cuda:', cuda)
             network, acc = trainANN.train(experiment,si_c=si_c,acc_cutoff=acc_cutoff,datadir=datadir,practice=practice,
                                           num_hidden=num_hidden,learning_rate=learning_rate,save=save,
-                                          save_model=modelname,verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
+                                          save_model=modelname+'.pt',verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
         
 
             network.eval()
@@ -173,7 +173,6 @@ def run(args):
                 df_pertask['Logic'].append(experiment.practicedRuleSet.Logic[i])
                 df_pertask['Sensory'].append(experiment.practicedRuleSet.Sensory[i])
                 df_pertask['Motor'].append(experiment.practicedRuleSet.Motor[i])
-                df_pertask['Simulation'].append(i)
                 df_pertask['NumPracticedTasks'].append(n_practiced_tasks)
 
             novel_acc = []
@@ -187,57 +186,51 @@ def run(args):
                 df_pertask['Logic'].append(experiment.novelRuleSet.Logic[i])
                 df_pertask['Sensory'].append(experiment.novelRuleSet.Sensory[i])
                 df_pertask['Motor'].append(experiment.novelRuleSet.Motor[i])
-                df_pertask['Simulation'].append(i)
                 df_pertask['NumPracticedTasks'].append(n_practiced_tasks)
 
                 
-            if verbose: print('\tAccuracy on novel tasks:', np.mean(novel_acc)) 
+            if verbose: 
+                print('Model:', modelname, '| Simulation', sim, ' | # of practiced tasks:', n_practiced_tasks, '| Acc on novel tasks:', np.mean(novel_acc))
 
             # novel trial accuracy
-            df_group['Accuracy'].append(np.mean(novel_acc))
-            df_group['Simulation'].append(i)
-            df_group['NumPracticedTasks'].append(n_practiced_tasks)
+            df_sim['Accuracy'].append(np.mean(novel_acc))
+            df_sim['NumPracticedTasks'].append(n_practiced_tasks)
             hidden, rsm_corr = analysis.rsa_context(network,batchfilename=batchfilename,measure='corr')
-            df_group['ContextDimensionality'].append(tools.dimensionality(rsm_corr))
+            df_sim['ContextDimensionality'].append(tools.dimensionality(rsm_corr))
             #### response dimensionality - requires the task input/output set
             hidden, rsm_corr = analysis.rsa_behavior(network,full_inputs,full_targets,measure='corr')
-            df_group['ResponseDimensionality'].append(tools.dimensionality(rsm_corr))
+            df_sim['ResponseDimensionality'].append(tools.dimensionality(rsm_corr))
 
-            avg_nov_acc.append(np.mean(novel_acc))
+            #### Update and transfer novel task to practiced tasks
+            practicedRuleSet, novelRuleSet, nov2prac_ind = experiment.addPracticedTasks(n=1) # Add a random novel task to the practiced set
+            nov2prac_ind = nov2prac_ind[0]
+            new_novel_ind = np.where(experiment.novelRuleSet.index!=nov2prac_ind)[0] 
+            experiment.practicedRuleSet = practicedRuleSet
+            experiment.novelRuleSet = novelRuleSet
+            #
+            experiment.prac_input2d = torch.cat((experiment.prac_input2d, experiment.novel_inputs[nov2prac_ind,:]),0)
+            experiment.prac_target2d = torch.cat((experiment.prac_target2d, experiment.novel_targets[nov2prac_ind,:]),0)
+            #
+            new_novel_input = experiment.novel_inputs[nov2prac_ind,:].unsqueeze(0) # add empty dimension to stack
+            new_novel_target = experiment.novel_targets[nov2prac_ind,:].unsqueeze(0) # add empty dimension to stack
+            experiment.prac_inputs = torch.cat((experiment.prac_inputs, new_novel_input),0)
+            experiment.prac_targets = torch.cat((experiment.prac_targets, new_novel_target),0)
+            #
+            experiment.novel_inputs = experiment.novel_inputs[new_novel_ind,:,:]
+            experiment.novel_targets = experiment.novel_targets[new_novel_ind,:]
 
-            
-        print('**Averages across simulations** |', n_practiced_tasks, 'number of training tasks', ' |', modelname, '| cuda:', cuda)
-        print('\t Novel task acc =',np.mean(avg_nov_acc))
+            n_practiced_tasks += 1
 
 
+        outputdir = datadir + '/results/experiment2/'
         
-        #### Update and transfer novel task to practiced tasks
-        practicedRuleSet, novelRuleSet, nov2prac_ind = experiment.addPracticedTasks(n=1) # Add a random novel task to the practiced set
-        nov2prac_ind = nov2prac_ind[0]
-        new_novel_ind = np.where(experiment.novelRuleSet.index!=nov2prac_ind)[0] 
-        experiment.practicedRuleSet = practicedRuleSet
-        experiment.novelRuleSet = novelRuleSet
-        #
-        experiment.prac_input2d = torch.cat((experiment.prac_input2d, experiment.novel_inputs[nov2prac_ind,:]),0)
-        experiment.prac_target2d = torch.cat((experiment.prac_target2d, experiment.novel_targets[nov2prac_ind,:]),0)
-        #
-        new_novel_input = experiment.novel_inputs[nov2prac_ind,:].unsqueeze(0) # add empty dimension to stack
-        new_novel_target = experiment.novel_targets[nov2prac_ind,:].unsqueeze(0) # add empty dimension to stack
-        experiment.prac_inputs = torch.cat((experiment.prac_inputs, new_novel_input),0)
-        experiment.prac_targets = torch.cat((experiment.prac_targets, new_novel_target),0)
-        #
-        experiment.novel_inputs = experiment.novel_inputs[new_novel_ind,:,:]
-        experiment.novel_targets = experiment.novel_targets[new_novel_ind,:]
+        df_sim = pd.DataFrame(df_sim) 
+        df_sim.to_csv(outputdir + save_model + '_simData' + str(sim) + '.csv')
 
-        n_practiced_tasks += 1
-
-    outputdir = datadir + '/results/experiment2/'
-    
-    df_group = pd.DataFrame(df_group) 
-    df_group.to_csv(outputdir + save_model + '_GroupData' + '.csv')
-
-    df_pertask = pd.DataFrame(df_pertask)
-    df_pertask.to_csv(outputdir + save_model + '_PerTaskData' + '.csv')
+        df_pertask = pd.DataFrame(df_pertask)
+        df_pertask.to_csv(outputdir + save_model + '_PerTaskData' + str(sim) + '.csv')
+        
+        
 
 
 if __name__ == '__main__':

@@ -77,11 +77,14 @@ class Experiment(object):
 
         return taskSim1Set, taskSim2Set
 
-    def addPracticedTasks(self,n=1):
+    def addPracticedTasks(self,n=1,ordered=False):
         """
         adds additional novel tasks to the 'practicedRuleSet' variable
         """
-        novel2prac_ind = np.random.choice(self.novelRuleSet.index,n,replace=False)
+        if ordered:
+            novel2prac_ind = np.arange(n) 
+        else:
+            novel2prac_ind = np.random.choice(self.novelRuleSet.index,n,replace=False)
 
         # Add to random tasks to the practiced set
         practicedRuleSet = self.practicedRuleSet.append(self.novelRuleSet.iloc[novel2prac_ind],ignore_index=True)
