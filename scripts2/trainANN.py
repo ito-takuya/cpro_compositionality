@@ -134,6 +134,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
     accuracy = 0
     online_accuracy=[]
     if practice:
+        #network.optimizer = torch.optim.SGD(network.parameters(), lr=0.01)
         #network.optimizer = torch.optim.SGD(network.parameters(), lr=0.025)
         network.optimizer = torch.optim.Adam(network.parameters(), lr=0.0001)
         #### Load training batches
@@ -146,7 +147,12 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         accuracy_simp = 0
         count = 0
         #while accuracy_prac < acc_cutoff or accuracy1 < acc_cutoff or accuracy2 < acc_cutoff: 
-        while accuracy_prac < acc_cutoff:
+        ## old
+        #while accuracy_prac < acc_cutoff:
+        
+        ## new
+        # While alll tasks are under the accuracy cutoff
+        while accuracy_prac < experiment.prac_inputs.shape[0]:
             
         #    outputs, targets, loss1 = mod.train(network,
         #                                       logicalsensory_pretraining_input,
@@ -173,20 +179,37 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
             #    if loss<0.1:
             #        tmp_acc = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
-            outputs, targets, loss = mod.train(network,
-                                               prac_input2d,
-                                               prac_target2d,
-                                               si=W,dropout=True)
+            acc = []
+            order = np.arange(experiment.prac_inputs.shape[0])
+            np.random.shuffle(order)
+            for t in order:
+
+                outputs, targets, loss = mod.train(network,
+                                                   experiment.prac_inputs[t,:,:],
+                                                   experiment.prac_targets[t,:],
+                                                   si=W,dropout=True)
+
+                acc.append(mod.accuracyScore(network,outputs,targets)*100.0)
+            
+            accuracy_prac = np.sum(np.asarray(acc)>acc_cutoff)
+
+            if verbose: 
+                if count%200==0:
+                    print('**TRAINING**  iteration', count)
+                    print('\tavg accuracy on practiced tasks:', np.mean(np.asarray(acc)), '|', np.sum(np.asarray(acc)>acc_cutoff))
+
+            #### GOOD OLD VERSION
+            #outputs, targets, loss = mod.train(network,
+            #                                   prac_input2d,
+            #                                   prac_target2d,
+            #                                   si=W,dropout=True)
+            #accuracy_prac = mod.accuracyScore(network,outputs,targets)*100.0
+
+
+
             #if loss<0.1:
-            accuracy_prac = mod.accuracyScore(network,outputs,targets)*100.0
             #accuracy_prac = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
-            #if verbose: 
-            #    if count%100==0:
-            #        print('**PRACTICED training** iteration', count)
-            #        print('\tPracticed tasks:', accuracy_prac)
-            #     #   print('\tSensorimotor tasks:', accuracy2)
-            #     #   print('\tLogicalsensory tasks:', accuracy1)
 
             count += 1
 
