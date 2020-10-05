@@ -20,7 +20,7 @@ import pandas as pd
 datadir = '../../data/'
 
 def train(experiment,si_c=0,datadir=datadir,practice=True,
-             num_hidden=128,learning_rate=0.0001,acc_cutoff=95.0,
+             num_hidden=128,learning_rate=0.0001,acc_cutoff=95.0,n_epochs=None,
              save_model=None,verbose=True,save=True,
              lossfunc='MSE',pretraining=False,device='cpu'):
     """
@@ -146,57 +146,62 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         accuracy_prac = 0
         accuracy_simp = 0
         count = 0
-        #while accuracy_prac < acc_cutoff or accuracy1 < acc_cutoff or accuracy2 < acc_cutoff: 
-        ## old
-        #while accuracy_prac < acc_cutoff:
-        
-        ## new
-        # While alll tasks are under the accuracy cutoff
-        while accuracy_prac < experiment.prac_inputs.shape[0]:
-            
-        #    outputs, targets, loss1 = mod.train(network,
-        #                                       logicalsensory_pretraining_input,
-        #                                       logicalsensory_pretraining_output,
-        #                                       si=W,dropout=True)
-        #    #if lossfunc=='CrossEntropy': network.lossfunc = torch.nn.CrossEntropyLoss()
+       
+        if n_epochs is not None:
 
-        #    #accuracy = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
-        #    loss1 = loss1.detach().numpy()
-        #    accuracy1 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
+            for epoch in range(n_epochs):
 
-        #    outputs, targets, loss2 = mod.train(network,
-        #                                       sensorimotor_pretraining_input,
-        #                                       sensorimotor_pretraining_output,
-        #                                       si=W,dropout=True)
+                acc = []
+                order = np.arange(experiment.prac_inputs.shape[0])
+                np.random.shuffle(order)
+                for t in order:
 
-        #    loss2 = loss2.detach().numpy()
-        #    accuracy2 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
-            #for i in range(len(experiment.practicedRuleSet)):
-            #    outputs, targets, loss = mod.train(network,
-            #                                       prac_input[i,:,:],
-            #                                       prac_target2d[i,:,:],
-            #                                       si=W,dropout=True)
-            #    if loss<0.1:
-            #        tmp_acc = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
+                    outputs, targets, loss = mod.train(network,
+                                                       experiment.prac_inputs[t,:,:],
+                                                       experiment.prac_targets[t,:],
+                                                       si=W,dropout=True)
 
-            acc = []
-            order = np.arange(experiment.prac_inputs.shape[0])
-            np.random.shuffle(order)
-            for t in order:
+                    acc.append(mod.accuracyScore(network,outputs,targets)*100.0)
+                
+                accuracy_prac = np.sum(np.asarray(acc)>acc_cutoff)
 
-                outputs, targets, loss = mod.train(network,
-                                                   experiment.prac_inputs[t,:,:],
-                                                   experiment.prac_targets[t,:],
-                                                   si=W,dropout=True)
+                if verbose: 
+                    if count%200==0:
+                        print('**TRAINING**  iteration', count)
+                        print('\tavg accuracy on practiced tasks:', np.mean(np.asarray(acc)), '|', np.sum(np.asarray(acc)>acc_cutoff))
 
-                acc.append(mod.accuracyScore(network,outputs,targets)*100.0)
-            
-            accuracy_prac = np.sum(np.asarray(acc)>acc_cutoff)
 
-            if verbose: 
-                if count%200==0:
-                    print('**TRAINING**  iteration', count)
-                    print('\tavg accuracy on practiced tasks:', np.mean(np.asarray(acc)), '|', np.sum(np.asarray(acc)>acc_cutoff))
+
+                #outputs, targets, loss = mod.train(network,
+                #                                   prac_input2d,
+                #                                   prac_target2d,
+                #                                   si=W,dropout=True)
+                #accuracy_prac = mod.accuracyScore(network,outputs,targets)*100.0
+
+                accuracy_prac = np.sum(np.asarray(acc)>acc_cutoff)
+
+        else:
+
+            while accuracy_prac < experiment.prac_inputs.shape[0]:
+                
+                acc = []
+                order = np.arange(experiment.prac_inputs.shape[0])
+                np.random.shuffle(order)
+                for t in order:
+
+                    outputs, targets, loss = mod.train(network,
+                                                       experiment.prac_inputs[t,:,:],
+                                                       experiment.prac_targets[t,:],
+                                                       si=W,dropout=True)
+
+                    acc.append(mod.accuracyScore(network,outputs,targets)*100.0)
+                
+                accuracy_prac = np.sum(np.asarray(acc)>acc_cutoff)
+
+                if verbose: 
+                    if count%200==0:
+                        print('**TRAINING**  iteration', count)
+                        print('\tavg accuracy on practiced tasks:', np.mean(np.asarray(acc)), '|', np.sum(np.asarray(acc)>acc_cutoff))
 
             #### GOOD OLD VERSION
             #outputs, targets, loss = mod.train(network,
@@ -210,8 +215,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
             #if loss<0.1:
             #accuracy_prac = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
-
-            count += 1
+                count += 1
 
     if save:
         if save_model is not None:
