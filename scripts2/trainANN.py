@@ -1,17 +1,11 @@
 import numpy as np
 np.set_printoptions(suppress=True)
-#import matplotlib.pyplot as plt
-#import seaborn as sns
-#import scipy.stats as stats
 import os
-#os.sys.path.append('model/')
 
 import model.model as mod
-import model.task as task
 import time
 from importlib import reload
 mod = reload(mod)
-task = reload(task)
 import torch
 import pandas as pd
 #from torch.autograd import Variable
@@ -20,9 +14,10 @@ import pandas as pd
 datadir = '../../data/'
 
 def train(experiment,si_c=0,datadir=datadir,practice=True,
-             num_hidden=128,learning_rate=0.0001,acc_cutoff=95.0,n_epochs=None,optimizer='adam',
-             save_model=None,verbose=True,save=True,
-             lossfunc='MSE',pretraining=False,device='cpu'):
+          num_rule_inputs=11,num_hidden=128,learning_rate=0.0001,
+          acc_cutoff=95.0,n_epochs=None,optimizer='adam',
+          save_model=None,verbose=True,save=True,
+          lossfunc='MSE',pretraining=False,device='cpu'):
     """
     'online training model'
     num_hidden - # of hidden units
@@ -30,7 +25,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
     """
 
     #### ANN construction
-    network = mod.ANN(num_rule_inputs=11,
+    network = mod.ANN(num_rule_inputs=num_rule_inputs,
                          si_c=si_c,
                          num_sensory_inputs=16,
                          num_hidden=num_hidden,
