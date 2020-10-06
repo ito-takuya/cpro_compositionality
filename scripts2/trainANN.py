@@ -20,7 +20,7 @@ import pandas as pd
 datadir = '../../data/'
 
 def train(experiment,si_c=0,datadir=datadir,practice=True,
-             num_hidden=128,learning_rate=0.0001,acc_cutoff=95.0,n_epochs=None,
+             num_hidden=128,learning_rate=0.0001,acc_cutoff=95.0,n_epochs=None,optimizer='adam',
              save_model=None,verbose=True,save=True,
              lossfunc='MSE',pretraining=False,device='cpu'):
     """
@@ -68,14 +68,14 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         logicalsensory_pretraining_output= experiment.logicalsensory_pretraining_output
 
         ##### First motor rule only pretraining
-        loss = 1
-        while loss>0.01: 
-
-            #### Motor rule pretraining
-            outputs, targets, loss = mod.train(network,
-                                               pretraining_input,
-                                               pretraining_output,
-                                               si=W,dropout=True)
+#        loss = 1
+#        while loss>0.01: 
+#
+#            #### Motor rule pretraining
+#            outputs, targets, loss = mod.train(network,
+#                                               pretraining_input,
+#                                               pretraining_output,
+#                                               si=W,dropout=True)
         #for i in range(nbatches_pretraining):
         #    outputs, targets, loss = mod.train(network,
         #                                       pretraining_input,
@@ -90,7 +90,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         loss1 = 1
         loss2 = 1
         count = 0
-        while loss1>0.01 or loss2>0.01 or loss>0.01: 
+        while loss1>0.01 or loss2>0.01: 
 
             ##### Motor rule pretraining
             #outputs, targets, loss = mod.train(network,
@@ -134,9 +134,11 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
     accuracy = 0
     online_accuracy=[]
     if practice:
-        #network.optimizer = torch.optim.SGD(network.parameters(), lr=0.01)
-        #network.optimizer = torch.optim.SGD(network.parameters(), lr=0.025)
-        network.optimizer = torch.optim.Adam(network.parameters(), lr=0.0001)
+        if optimizer =='sgd':
+            network.optimizer = torch.optim.SGD(network.parameters(), lr=0.01)
+            #network.optimizer = torch.optim.SGD(network.parameters(), lr=0.025)
+        if optimizer == 'adam':
+            network.optimizer = torch.optim.Adam(network.parameters(), lr=0.0001)
         #### Load training batches
         if verbose: print('Loading practice and (all tasks) batches')
         prac_input2d = experiment.prac_input2d
@@ -165,13 +167,6 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
                 
                 accuracy_prac = np.sum(np.asarray(acc)>acc_cutoff)
 
-                if verbose: 
-                    if count%200==0:
-                        print('**TRAINING**  iteration', count)
-                        print('\tavg accuracy on practiced tasks:', np.mean(np.asarray(acc)), '|', np.sum(np.asarray(acc)>acc_cutoff))
-
-
-
                 #outputs, targets, loss = mod.train(network,
                 #                                   prac_input2d,
                 #                                   prac_target2d,
@@ -179,6 +174,8 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
                 #accuracy_prac = mod.accuracyScore(network,outputs,targets)*100.0
 
                 accuracy_prac = np.sum(np.asarray(acc)>acc_cutoff)
+
+            print('\tTraining on practiced tasks exits with:', np.mean(np.asarray(acc)),'% after', n_epochs, 'epochs')
 
         else:
 
