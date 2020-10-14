@@ -20,8 +20,13 @@ class Experiment(object):
     Batch trials, but specifically separate practiced versus novel task sets (4 practiced, 60 novel)
     """
     def __init__(self,
+                 NUM_INPUT_ELEMENTS=28,
+                 NUM_OUTPUT_ELEMENTS=4,
                  filename=datadir + 'results/MODEL/Trials_PracticeVsNovel_Default'):
 
+
+        self.NUM_OUTPUT_ELEMENTS = NUM_OUTPUT_ELEMENTS
+        self.NUM_INPUT_ELEMENTS = NUM_INPUT_ELEMENTS
         self.filename = filename
 
         if os.path.exists(filename + '_practice.csv'):
@@ -77,26 +82,6 @@ class Experiment(object):
 
         return taskSim1Set, taskSim2Set
 
-    def addPracticedTasks(self,n=1,ordered=False):
-        """
-        adds additional novel tasks to the 'practicedRuleSet' variable
-        """
-        if ordered:
-            novel2prac_ind = np.arange(n) 
-        else:
-            novel2prac_ind = np.random.choice(self.novelRuleSet.index,n,replace=False)
-
-        # Add to random tasks to the practiced set
-        practicedRuleSet = self.practicedRuleSet.append(self.novelRuleSet.iloc[novel2prac_ind],ignore_index=True)
-
-        novelRuleSet = self.novelRuleSet.drop(novel2prac_ind,axis='index')
-        novelRuleSet = novelRuleSet.reset_index(drop=True) # reset index, don't create new index column
-
-        return practicedRuleSet, novelRuleSet, novel2prac_ind
-
-
-
-
 def create_random_trials(taskRuleSet,ntrials_per_task,seed):
     """
     Randomly generates a set of stimuli (nStimuli) for each task rule
@@ -123,8 +108,8 @@ def create_random_trials(taskRuleSet,ntrials_per_task,seed):
     ntrials_total = ntrials_per_task * len(taskRuleSet)
     ####
     # Construct trial dynamics
-    rule_ind = np.arange(11) # rules are the first 11 indices of input vector
-    stim_ind = np.arange(11,27) # stimuli are the last 16 indices of input vector
+    rule_ind = np.arange(12) # rules are the first 12 indices of input vector
+    stim_ind = np.arange(12,28) # stimuli are the last 16 indices of input vector
     input_size = len(rule_ind) + len(stim_ind)
     input_matrix = np.zeros((input_size,ntrials_total))
     #output_matrix = np.zeros((4,ntrials_total))
@@ -177,8 +162,8 @@ def create_all_trials(taskRuleSet):
     ntrials_total = len(stimuliSet) * len(taskRuleSet)
     ####
     # Construct trial dynamics
-    rule_ind = np.arange(11) # rules are the first 11 indices of input vector
-    stim_ind = np.arange(11,27) # stimuli are the last 16 indices of input vector
+    rule_ind = np.arange(12) # rules are the first 12 indices of input vector
+    stim_ind = np.arange(12,28) # stimuli are the last 16 indices of input vector
     input_size = len(rule_ind) + len(stim_ind)
     input_matrix = np.zeros((input_size,len(stimuliSet),len(taskRuleSet)))
     #output_matrix = np.zeros((4,len(stimuliSet),len(taskRuleSet)))
@@ -267,18 +252,18 @@ def createRulePermutations():
     """
     May need to change this - both and not both are negations of each other, as are either and neither
     """    
-    logicRules = {'both':1,
-                  'either':2,
-                  'notboth':[1,0],
-                  'neither':[2,0]} # 0 - 'not', 1 - 'both', 2 - 'either'
-    sensoryRules = {'red':3,
-                    'vertical':4,
-                    'high':5,
-                    'constant':6}
-    motorRules = {'l_mid':7,
-                  'l_ind':8,
-                  'r_ind':9,
-                  'r_mid':10}
+    logicRules = {0: 'both',
+                  1: 'notboth',
+                  2: 'either',
+                  3: 'neither'}
+    sensoryRules = {4: 'red',
+                    5: 'vertical',
+                    6: 'high',
+                    7: 'constant'}
+    motorRules = {8: 'l_mid',
+                  9: 'l_ind',
+                  10: 'r_ind',
+                  11: 'r_mid'}
     
     
     taskrules = {}
@@ -293,24 +278,24 @@ def createRulePermutations():
     for lo in logicRules:
         for se in sensoryRules:
             for mo in motorRules:
-                code = np.zeros((11,))
+                code = np.zeros((12,))
                 # Logic rule
-                taskrules['Logic'].append(lo)
-                code[logicRules[lo]] = 1
+                taskrules['Logic'].append(logicRules[lo])
+                code[lo] = 1
                 
                 # Sensory rule
-                taskrules['Sensory'].append(se)
-                code[sensoryRules[se]] = 1
+                taskrules['Sensory'].append(sensoryRules[se])
+                code[se] = 1
                 # Define sensory category
-                if se=='red': category = 'Color'
-                if se=='vertical': category = 'Orientation'
-                if se=='high': category = 'Pitch'
-                if se=='constant': category = 'Constant'
+                if sensoryRules[se]=='red': category = 'Color'
+                if sensoryRules[se]=='vertical': category = 'Orientation'
+                if sensoryRules[se]=='high': category = 'Pitch'
+                if sensoryRules[se]=='constant': category = 'Constant'
                 taskrules['SensoryCategory'].append(category)
                 
                 # Motor rule
-                taskrules['Motor'].append(mo)
-                code[motorRules[mo]] = 1
+                taskrules['Motor'].append(motorRules[mo])
+                code[mo] = 1
                 
                 taskrules['Code'].append(list(code))
                 
@@ -498,18 +483,18 @@ def _create_sensorimotor_pretraining_rules():
     """
     create rule combinations with one sensory rule and one motor rule
     """    
-    #logicRules = {'both':1,
-    #              'either':2,
-    #              'notboth':[1,0],
-    #              'neither':[2,0]} # 0 - 'not', 1 - 'both', 2 - 'either'
-    sensoryRules = {'red':3,
-                    'vertical':4,
-                    'high':5,
-                    'constant':6}
-    motorRules = {'l_mid':7,
-                  'l_ind':8,
-                  'r_ind':9,
-                  'r_mid':10}
+#    logicRules = {0: 'both',
+#                  1: 'notboth',
+#                  2: 'either',
+#                  3: 'neither'}
+    sensoryRules = {4: 'red',
+                    5: 'vertical',
+                    6: 'high',
+                    7: 'constant'}
+    motorRules = {8: 'l_mid',
+                  9: 'l_ind',
+                  10: 'r_ind',
+                  11: 'r_mid'}
     
     
     taskrules = {}
@@ -522,20 +507,20 @@ def _create_sensorimotor_pretraining_rules():
     
     for se in sensoryRules:
         for mo in motorRules:
-            code = np.zeros((11,))
+            code = np.zeros((12,))
             # Sensory rule
-            taskrules['Sensory'].append(se)
-            code[sensoryRules[se]] = 1
+            taskrules['Sensory'].append(sensoryRules[se])
+            code[se] = 1
             # Define sensory category
-            if se=='red': category = 'Color'
-            if se=='vertical': category = 'Orientation'
-            if se=='high': category = 'Pitch'
-            if se=='constant': category = 'Constant'
+            if sensoryRules[se]=='red': category = 'Color'
+            if sensoryRules[se]=='vertical': category = 'Orientation'
+            if sensoryRules[se]=='high': category = 'Pitch'
+            if sensoryRules[se]=='constant': category = 'Constant'
             taskrules['SensoryCategory'].append(category)
             
             # Motor rule
-            taskrules['Motor'].append(mo)
-            code[motorRules[mo]] = 1
+            taskrules['Motor'].append(motorRules[mo])
+            code[mo] = 1
             
             taskrules['Code'].append(list(code))
                 
@@ -545,18 +530,18 @@ def _create_logicalsensory_pretraining_rules():
     """
     create rule combinations with one sensory rule and one motor rule
     """    
-    logicRules = {'both':1,
-                  'either':2,
-                  'notboth':[1,0],
-                  'neither':[2,0]} # 0 - 'not', 1 - 'both', 2 - 'either'
-    sensoryRules = {'red':3,
-                    'vertical':4,
-                    'high':5,
-                    'constant':6}
-    #motorRules = {'l_mid':7,
-    #              'l_ind':8,
-    #              'r_ind':9,
-    #              'r_mid':10}
+    logicRules = {0: 'both',
+                  1: 'notboth',
+                  2: 'either',
+                  3: 'neither'}
+    sensoryRules = {4: 'red',
+                    5: 'vertical',
+                    6: 'high',
+                    7: 'constant'}
+#    motorRules = {8: 'l_mid',
+#                  9: 'l_ind',
+#                  10: 'r_ind',
+#                  11: 'r_mid'}
     
     
     taskrules = {}
@@ -569,20 +554,20 @@ def _create_logicalsensory_pretraining_rules():
     
     for se in sensoryRules:
         for lo in logicRules:
-            code = np.zeros((11,))
+            code = np.zeros((12,))
             # Sensory rule
-            taskrules['Sensory'].append(se)
-            code[sensoryRules[se]] = 1
+            taskrules['Sensory'].append(sensoryRules[se])
+            code[se] = 1
             # Define sensory category
-            if se=='red': category = 'Color'
-            if se=='vertical': category = 'Orientation'
-            if se=='high': category = 'Pitch'
-            if se=='constant': category = 'Constant'
+            if sensoryRules[se]=='red': category = 'Color'
+            if sensoryRules[se]=='vertical': category = 'Orientation'
+            if sensoryRules[se]=='high': category = 'Pitch'
+            if sensoryRules[se]=='constant': category = 'Constant'
             taskrules['SensoryCategory'].append(category)
             
             # Motor rule
-            taskrules['Logic'].append(lo)
-            code[logicRules[lo]] = 1
+            taskrules['Logic'].append(logicRules[lo])
+            code[lo] = 1
             
             taskrules['Code'].append(list(code))
                 
@@ -773,38 +758,23 @@ def create_motorrule_pretraining():
 
     ####
     # Construct trial dynamics
-    rule_ind = np.arange(11) # rules are the first 12 indices of input vector
-    stim_ind = np.arange(11,27) # stimuli are the last 16 indices of input vector
-    motor_ind = np.arange(7,11)
+    rule_ind = np.arange(12) # rules are the first 12 indices of input vector
+    stim_ind = np.arange(12,28) # stimuli are the last 16 indices of input vector
+    motor_ind = np.arange(8,12)
     input_size = len(rule_ind) + len(stim_ind)
     input_matrix = []
     output_matrix = []
 
-    # Now create motor rule primitives 
+    # Now create motor rule primitives
     for mot in motorCode:
         input_arr = np.zeros((input_size,))
+      #  output_arr = np.zeros((4,))
         input_arr[motor_ind[mot]] = 1
         #output_arr[mot] = 1
         output_matrix.append(mot)
 
         input_matrix.append(input_arr)
-
-    # Now create motor rule primitives for NOT equivalent
-    for mot in motorCode:
-        input_arr = np.zeros((input_size,))
-        input_arr[motor_ind[mot]] = 1
-        input_arr[0] = 1 # NOT rule
-        #output_arr[mot] = 1
-        if motorCode[mot]=='l_mid':
-            output_matrix.append(1) # l_ind response
-        if motorCode[mot]=='l_ind':
-            output_matrix.append(0)
-        if motorCode[mot]=='r_ind':
-            output_matrix.append(3)
-        if motorCode[mot]=='r_mid':
-            output_matrix.append(2)
-
-        input_matrix.append(input_arr)
+        #output_matrix.append(output_arr)
     
     input_matrix = np.asarray(input_matrix)
     output_matrix = np.asarray(output_matrix)
@@ -829,8 +799,8 @@ def create_sensorimotor_pretraining():
 
     ####
     # Construct trial dynamics
-    rule_ind = np.arange(11) # rules are the first 12 indices of input vector
-    stim_ind = np.arange(11,27) # stimuli are the last 16 indices of input vector
+    rule_ind = np.arange(12) # rules are the first 12 indices of input vector
+    stim_ind = np.arange(12,28) # stimuli are the last 16 indices of input vector
     input_size = len(rule_ind) + len(stim_ind)
     input_matrix = []
     output_matrix = []
@@ -872,8 +842,8 @@ def create_logicalsensory_pretraining():
 
     ####
     # Construct trial dynamics
-    rule_ind = np.arange(11) # rules are the first 12 indices of input vector
-    stim_ind = np.arange(11,27) # stimuli are the last 16 indices of input vector
+    rule_ind = np.arange(12) # rules are the first 12 indices of input vector
+    stim_ind = np.arange(12,28) # stimuli are the last 16 indices of input vector
     input_size = len(rule_ind) + len(stim_ind)
     input_matrix = []
     output_matrix = []

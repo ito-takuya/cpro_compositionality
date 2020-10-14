@@ -76,21 +76,21 @@ def run(args):
     #########################################
     print("create task sets")
     #### Construct test set for 'practiced' trials based on task similarity
-    test_prac_inputs, test_prac_targets = task.create_all_trials(experiment.practicedRuleSet)
-    test_prac_inputs = torch.from_numpy(test_prac_inputs.T).float()
-    test_prac_targets = torch.from_numpy(test_prac_targets.T).long()
+    prac_inputs, prac_targets = task.create_all_trials(experiment.practicedRuleSet)
+    prac_inputs = torch.from_numpy(prac_inputs.T).float()
+    prac_targets = torch.from_numpy(prac_targets.T).long()
     if cuda:
-        test_prac_inputs = test_prac_inputs.cuda()
-        test_prac_targets = test_prac_targets.cuda()
+        prac_inputs = prac_inputs.cuda()
+        prac_targets = prac_targets.cuda()
     
-    prac_input2d = test_prac_inputs.reshape(test_prac_inputs.shape[0]*test_prac_inputs.shape[1],test_prac_inputs.shape[2])
-    prac_target2d = torch.flatten(test_prac_targets)
+    prac_input2d = prac_inputs.reshape(prac_inputs.shape[0]*prac_inputs.shape[1],prac_inputs.shape[2])
+    prac_target2d = torch.flatten(prac_targets)
 
     experiment.prac_input2d = prac_input2d
     experiment.prac_target2d = prac_target2d
     # Also store the unflattened version 
-    experiment.test_prac_inputs = test_prac_inputs
-    experiment.test_prac_targets = test_prac_targets
+    experiment.prac_inputs = prac_inputs
+    experiment.prac_targets = prac_targets
 
 
 

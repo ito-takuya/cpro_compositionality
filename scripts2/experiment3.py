@@ -1,5 +1,6 @@
-#### Experiment 2
+#### Experiment 3
 # for each simulation, incrementally train additional tasks (i.e., include more practiced tasks) and assess performance etc.
+# fix number of epochs of data trained on, rather than using an 'accuracy cut-off'
 
 import numpy as np
 import argparse
@@ -23,8 +24,9 @@ datadir = '../../data/'
 parser = argparse.ArgumentParser('./main.py', description='Run a set of simulations/models')
 parser.add_argument('--nsimulations', type=int, default=20, help='number of models/simulations to run')
 parser.add_argument('--pretraining', action='store_true', help="pretrain network on simple tasks to improve compositionality")
+parser.add_argument('--nepochs', type=int, default=100, help='number of epochs to run on practiced data')
+parser.add_argument('--optimizer', type=str, default='adam', help='default optimizer to train on practiced tasks')
 parser.add_argument('--practice', action='store_true', help="Train on practiced tasks")
-parser.add_argument('--acc_cutoff', type=float, default=95.0, help="condition for exiting ANN training")
 parser.add_argument('--cuda', action='store_true', help="use gpu/cuda")
 parser.add_argument('--save_model', type=str, default="ANN", help='string name to output models')
 parser.add_argument('--verbose', action='store_true', help='verbose')
@@ -34,14 +36,16 @@ parser.add_argument('--save', action='store_true', help="save or don't save mode
 parser.add_argument('--batchname', type=str, default='Experiment_FullTaskSet_11LogicInputs', help='string name for the experiment filename')
 parser.add_argument('--si_c', type=float, default=0.0, help='synaptic intelligence parameter (Zenke et al. 2017); default=0, meaning no synaptic intelligence implemented')
 
+
 def run(args):
     args 
     nsimulations = args.nsimulations
     si_c = args.si_c
     practice = args.practice
+    n_epochs = args.nepochs
+    optimizer = args.optimizer
     num_hidden = args.num_hidden
     learning_rate = args.learning_rate
-    acc_cutoff = args.acc_cutoff
     save_model = args.save_model
     save = args.save
     batchname = args.batchname
@@ -51,12 +55,14 @@ def run(args):
 
 
     #save_model = save_model + '_' + batchname
-    save_model = save_model + '_' + str(int(acc_cutoff)) + 'acc'
+    save_model = save_model + '_' + optimizer
+    save_model = save_model + '_' + str(int(n_epochs)) + 'epochs'
     if pretraining:
         save_model = save_model + '_pretraining'
 
     if practice:
         save_model = save_model + '_practice'
+
 
     if cuda:
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -65,6 +71,36 @@ def run(args):
 
     batchfilename = datadir + 'results/model/' + batchname
     experiment = task.Experiment(filename=batchfilename)
+
+
+    #########################################
+    print("create task sets -- all simulations start with the same base 'practiced set'")
+    #### Construct test set for 'practiced' trials based on task similarity
+    prac_inputs, prac_targets = task.create_all_trials(experiment.practicedRuleSet)
+    prac_inputs = torch.from_numpy(prac_inputs.T).float()
+    prac_targets = torch.from_numpy(prac_targets.T).long()
+    if cuda:
+        prac_inputs = prac_inputs.cuda()
+        prac_targets = prac_targets.cuda()
+    
+    prac_input2d = prac_inputs.reshape(prac_inputs.shape[0]*prac_inputs.shape[1],prac_inputs.shape[2])
+    prac_target2d = torch.flatten(prac_targets)
+
+    experiment.prac_input2d = prac_input2d
+    experiment.prac_target2d = prac_target2d
+    # Also store the unflattened version 
+    experiment.prac_inputs = prac_inputs
+    experiment.prac_targets = prac_targets
+
+    #### Load novel tasks
+    novel_inputs, novel_targets = task.create_all_trials(experiment.novelRuleSet)
+    novel_inputs = torch.from_numpy(novel_inputs.T).float() # task x trials/stimuli x input units
+    novel_targets = torch.from_numpy(novel_targets.T).long() # task x stimuli
+    if cuda:
+        novel_inputs = novel_inputs.cuda()
+        novel_targets = novel_targets.cuda()
+    experiment.novel_inputs = novel_inputs 
+    experiment.novel_targets = novel_targets
 
     #### Load pretraining task data
     if pretraining:
@@ -156,7 +192,7 @@ def run(args):
         while n_practiced_tasks < len(experiment.taskRuleSet):
             modelname = save_model + str(sim)
             #if verbose: print('** TRAINING ON', n_practiced_tasks, 'PRACTICED TASKS ** ... simulation', sim, ' |', modelname, '| cuda:', cuda)
-            network, acc = trainANN.train(experiment,si_c=si_c,acc_cutoff=acc_cutoff,datadir=datadir,practice=practice,
+            network, acc = trainANN.train(experiment,si_c=si_c,n_epochs=n_epochs,datadir=datadir,practice=practice,optimizer=optimizer,
                                           num_hidden=num_hidden,learning_rate=learning_rate,save=save,
                                           save_model=modelname+'.pt',verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
         
@@ -222,7 +258,7 @@ def run(args):
             n_practiced_tasks += 1
 
 
-        outputdir = datadir + '/results/experiment2/'
+        outputdir = datadir + '/results/experiment3/'
         
         df_sim = pd.DataFrame(df_sim) 
         df_sim.to_csv(outputdir + save_model + '_simData' + str(sim) + '.csv')
