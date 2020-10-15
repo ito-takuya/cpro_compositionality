@@ -33,16 +33,16 @@ def parallelismScore(data,labels):
     for cond1 in classes: # first condition
         ind_cond1 = np.where(labels==cond1)[0] # return the indices for the first class
         np.random.shuffle(ind_cond1) # randomize order
-        ind_split1_cond1, ind_split2_cond1 = ind_cond1[:len(ind_cond1)/2], ind_cond1[len(ind_cond1)/2:] # randomly split into pairs
+        ind_split1_cond1, ind_split2_cond1 = ind_cond1[:int(len(ind_cond1)/2)], ind_cond1[int(len(ind_cond1)/2):] # randomly split into pairs
         split1_cond1, split2_cond1 = data[ind_split1_cond1,:], data[ind_split2_cond1,:]
         j = 0
         for cond2 in classes: # second condition
-            if i == j or j<i: 
+            if i == j or i<j: 
                 # skip if same conditions or if doing a symmetrical calculation - this is not informative (dot product is symmetrical)
                 continue 
             ind_cond2 = np.where(labels==cond2)[0] # return the indices for the second class
             np.random.shuffle(ind_cond2) # randomize order
-            ind_split1_cond2, ind_split2_cond2 = ind_cond2[:len(ind_cond2)/2], ind_cond2[len(ind_cond2)/2:] # randomly split into pairs
+            ind_split1_cond2, ind_split2_cond2 = ind_cond2[:int(len(ind_cond2)/2)], ind_cond2[int(len(ind_cond2)/2):] # randomly split into pairs
             split1_cond2, split2_cond2 = data[ind_split1_cond2,:], data[ind_split2_cond2,:]
 
             #### Calculate the vectors
@@ -51,12 +51,21 @@ def parallelismScore(data,labels):
             split2_vec = split2_cond1 - split2_cond2 # second split
 
             # Normalize vectors
-            split1_vec = np.divide(split1_vec,np.linalg.norm(split1_vec,axis=1))
-            split2_vec = np.divide(split2_vec,np.linalg.norm(split2_vec,axis=1))
+            split1_norm = np.linalg.norm(split1_vec,axis=1)
+            split1_norm.shape = (len(split1_norm),1)
+            split2_norm = np.linalg.norm(split2_vec,axis=1)
+            split2_norm.shape = (len(split2_norm),1)
+            split1_vec = np.divide(split1_vec,split1_norm)
+            split2_vec = np.divide(split2_vec,split2_norm)
 
             # If parallel, the dot product of the difference vectors should be close to 1 for all random pairs
             ps = np.dot(split1_vec,split2_vec.T) # each mat is samples x features
             ps_score[i,j] = np.mean(ps) # compute average ps
+            j += 1
+
+        i += 1
+
+    ps_score = ps_score + ps_score.T # make the matrix symmetric and fill out other half of the matrix
 
     return ps_score, classes
 

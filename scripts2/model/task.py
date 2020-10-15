@@ -175,7 +175,10 @@ def create_all_trials(taskRuleSet,output_taskinfo=False):
     #taskRuleSet = taskRuleSet2.copy(deep=True)
 
     # Create taskinfo data frame to keep track of specific trial types
-    taskinfo = pd.DataFrame({})
+    taskinfo = {}
+    taskinfo['Logic'] = []
+    taskinfo['Sensory'] = []
+    taskinfo['Motor'] = []
 
     ntrials_total = len(stimuliSet) * len(taskRuleSet)
     ####
@@ -192,7 +195,9 @@ def create_all_trials(taskRuleSet,output_taskinfo=False):
         for i in stimuliSet.index:
     
             # Create full task design dataframe
-            taskinfo.append(df.concat([taskRuleSet.iloc[tasknum],stimuliSet.iloc[i]],axis=1))
+            taskinfo['Logic'].append(taskRuleSet.Logic[tasknum])
+            taskinfo['Sensory'].append(taskRuleSet.Sensory[tasknum])
+            taskinfo['Motor'].append(taskRuleSet.Motor[tasknum])
 
             ## Create trial array
             # Find input code for this task set
@@ -210,7 +215,7 @@ def create_all_trials(taskRuleSet,output_taskinfo=False):
     #tmp_zeros = np.zeros((2,output_matrix.shape[1],output_matrix.shape[2]))
     #output_matrix = np.vstack((output_matrix,tmp_zeros))
     if output_taskinfo:
-        return input_matrix, output_matrix, taskinfo
+        return input_matrix, output_matrix, pd.DataFrame(taskinfo)
     else:
         return input_matrix, output_matrix 
 
