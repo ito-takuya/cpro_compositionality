@@ -156,7 +156,7 @@ def create_random_trials(taskRuleSet,ntrials_per_task,seed):
     #output_matrix = np.vstack((output_matrix,tmp_zeros))
     return input_matrix, output_matrix 
 
-def create_all_trials(taskRuleSet):
+def create_all_trials(taskRuleSet,output_taskinfo=False):
     """
     Creates all possible trials given a task rule set (iterates through all possible stimulus combinations)
     Will end up with 64 (task rules) * nStimuli total number of input stimuli
@@ -174,6 +174,9 @@ def create_all_trials(taskRuleSet):
     taskRuleSet = taskRuleSet.reset_index(drop=False)
     #taskRuleSet = taskRuleSet2.copy(deep=True)
 
+    # Create taskinfo data frame to keep track of specific trial types
+    taskinfo = pd.DataFrame({})
+
     ntrials_total = len(stimuliSet) * len(taskRuleSet)
     ####
     # Construct trial dynamics
@@ -188,6 +191,9 @@ def create_all_trials(taskRuleSet):
         trialcount = 0
         for i in stimuliSet.index:
     
+            # Create full task design dataframe
+            taskinfo.append(df.concat([taskRuleSet.iloc[tasknum],stimuliSet.iloc[i]],axis=1))
+
             ## Create trial array
             # Find input code for this task set
             input_matrix[rule_ind,trialcount,tasknum] = taskRuleSet.Code[tasknum] 
@@ -203,7 +209,10 @@ def create_all_trials(taskRuleSet):
     # Pad output with 2 additional units for pretraining tasks
     #tmp_zeros = np.zeros((2,output_matrix.shape[1],output_matrix.shape[2]))
     #output_matrix = np.vstack((output_matrix,tmp_zeros))
-    return input_matrix, output_matrix 
+    if output_taskinfo:
+        return input_matrix, output_matrix, taskinfo
+    else:
+        return input_matrix, output_matrix 
 
 def createSensoryInputs(nStims=2):
     stimdata = {}

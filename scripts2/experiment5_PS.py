@@ -202,7 +202,8 @@ def run(args):
             #if verbose: print('** TRAINING ON', n_practiced_tasks, 'PRACTICED TASKS ** ... simulation', sim, ' |', modelname, '| cuda:', cuda)
             network, acc = trainANN.train(experiment,si_c=si_c,n_epochs=n_epochs,datadir=datadir,practice=practice,optimizer=optimizer,
                                           num_hidden=num_hidden,num_hidden_layers=num_layers,learning_rate=learning_rate,save=save,
-                                          save_model=outputdir+modelname+'.pt',verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
+                                          save_model=outputdir+modelname+'_' + str(n_practiced_tasks) + 'practiceTasks.pt',
+                                          verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
         
 
             network.eval()
