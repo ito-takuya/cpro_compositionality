@@ -30,6 +30,7 @@ parser.add_argument('--practice', action='store_true', help="Train on practiced 
 parser.add_argument('--cuda', action='store_true', help="use gpu/cuda")
 parser.add_argument('--save_model', type=str, default="ANN", help='string name to output models')
 parser.add_argument('--verbose', action='store_true', help='verbose')
+parser.add_argument('--num_layers', type=int, default=2, help="number of hidden layers")
 parser.add_argument('--num_hidden', type=int, default=256, help="number of units in hidden layers")
 parser.add_argument('--learning_rate', type=float, default=0.001, help="learning rate for pretraining sessions (ADAM default)")
 parser.add_argument('--save', action='store_true', help="save or don't save model")
@@ -44,6 +45,7 @@ def run(args):
     practice = args.practice
     n_epochs = args.nepochs
     optimizer = args.optimizer
+    num_layers = args.num_layers
     num_hidden = args.num_hidden
     learning_rate = args.learning_rate
     save_model = args.save_model
@@ -57,6 +59,7 @@ def run(args):
     #save_model = save_model + '_' + batchname
     save_model = save_model + '_' + optimizer
     save_model = save_model + '_' + str(int(n_epochs)) + 'epochs'
+    save_model = save_model + '_' + str(int(num_layers)) + 'layers'
     if pretraining:
         save_model = save_model + '_pretraining'
 
@@ -193,7 +196,7 @@ def run(args):
             modelname = save_model + str(sim)
             #if verbose: print('** TRAINING ON', n_practiced_tasks, 'PRACTICED TASKS ** ... simulation', sim, ' |', modelname, '| cuda:', cuda)
             network, acc = trainANN.train(experiment,si_c=si_c,n_epochs=n_epochs,datadir=datadir,practice=practice,optimizer=optimizer,
-                                          num_hidden=num_hidden,learning_rate=learning_rate,save=save,
+                                          num_hidden=num_hidden,num_hidden_layers=num_layers,learning_rate=learning_rate,save=save,
                                           save_model=modelname+'.pt',verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
         
 

@@ -28,6 +28,7 @@ class ANN(torch.nn.Module):
                  num_sensory_inputs=16,
                  num_hidden=128,
                  num_motor_decision_outputs=6,
+                 num_hidden_layers=2,
                  learning_rate=0.0001,
                  thresh=0.0,
                  si_c=0,
@@ -39,6 +40,7 @@ class ANN(torch.nn.Module):
         self.num_sensory_inputs =  num_sensory_inputs
         self.num_hidden = num_hidden
         self.num_motor_decision_outputs = num_motor_decision_outputs
+        self.num_hidden_layers = num_hidden_layers
         
         # Define entwork architectural parameters
         super(ANN,self).__init__()
@@ -87,19 +89,21 @@ class ANN(torch.nn.Module):
         Run a forward pass of a trial by input_elements matrix
         """
         # Map inputs into RNN space
-        rnn_input = self.w_in(inputs) 
-        if dropout: rnn_input = self.dropout_in(rnn_input)
-        rnn_input = self.func(rnn_input)
+        hidden = self.w_in(inputs) 
+        if dropout: hidden = self.dropout_in(hidden)
+        hidden = self.func(hidden)
         # Define rnn private noise/spont_act
         if noise:
-            spont_act = torch.randn(rnn_input.shape, device=self.device,dtype=torch.float)/self.num_hidden
+            spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)/self.num_hidden
             # Add private noise to each unit, and add to the input
-            rnn_input = rnn_input + spont_act
+            hidden = hidden + spont_act
 
         # Run RNN
-        hidden = self.w_rec(rnn_input)
-        if dropout: hidden = self.dropout_rec(hidden)
-        hidden = self.func(hidden)
+        if self.num_hidden_layers>1:
+            for i in range(self.num_hidden_layers-1):
+                hidden = self.w_rec(hidden)
+                if dropout: hidden = self.dropout_rec(hidden)
+                hidden = self.func(hidden)
         
         # Compute outputs
         h2o = self.w_out(hidden) # Generate linear outupts

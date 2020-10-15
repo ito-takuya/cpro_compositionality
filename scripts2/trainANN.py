@@ -14,7 +14,7 @@ import pandas as pd
 datadir = '../../data/'
 
 def train(experiment,si_c=0,datadir=datadir,practice=True,
-          num_rule_inputs=11,num_hidden=128,learning_rate=0.0001,
+          num_rule_inputs=11,num_hidden=128,num_hidden_layers=2,learning_rate=0.0001,
           acc_cutoff=95.0,n_epochs=None,optimizer='adam',
           save_model=None,verbose=True,save=True,
           lossfunc='MSE',pretraining=False,device='cpu'):
@@ -28,6 +28,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
     network = mod.ANN(num_rule_inputs=num_rule_inputs,
                          si_c=si_c,
                          num_sensory_inputs=16,
+                         num_hidden_layers=num_hidden_layers,
                          num_hidden=num_hidden,
                          num_motor_decision_outputs=6,
                          learning_rate=learning_rate,
@@ -130,7 +131,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
     online_accuracy=[]
     if practice:
         if optimizer =='sgd':
-            network.optimizer = torch.optim.SGD(network.parameters(), lr=0.01)
+            network.optimizer = torch.optim.SGD(network.parameters(), lr=0.01,momentum=0.9)
             #network.optimizer = torch.optim.SGD(network.parameters(), lr=0.025)
         if optimizer == 'adam':
             network.optimizer = torch.optim.Adam(network.parameters(), lr=0.0001)

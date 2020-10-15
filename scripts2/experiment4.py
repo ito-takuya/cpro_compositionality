@@ -34,7 +34,7 @@ parser.add_argument('--verbose', action='store_true', help='verbose')
 parser.add_argument('--num_hidden', type=int, default=256, help="number of units in hidden layers")
 parser.add_argument('--learning_rate', type=float, default=0.001, help="learning rate for pretraining sessions (ADAM default)")
 parser.add_argument('--save', action='store_true', help="save or don't save model")
-parser.add_argument('--batchname', type=str, default='Experiment_FullTaskSet_11LogicInputs', help='string name for the experiment filename')
+parser.add_argument('--batchname', type=str, default='Experiment_FullTaskSet_12LogicInputs', help='string name for the experiment filename')
 parser.add_argument('--si_c', type=float, default=0.0, help='synaptic intelligence parameter (Zenke et al. 2017); default=0, meaning no synaptic intelligence implemented')
 
 

@@ -547,8 +547,8 @@ def _create_logicalsensory_pretraining_rules():
     """    
     logicRules = {'both':1,
                   'either':2,
-                  'notboth':[1,0],
-                  'neither':[2,0]} # 0 - 'not', 1 - 'both', 2 - 'either'
+                  'notboth':[0,1],
+                  'neither':[0,2]} # 0 - 'not', 1 - 'both', 2 - 'either'
     sensoryRules = {'red':3,
                     'vertical':4,
                     'high':5,
