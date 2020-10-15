@@ -212,7 +212,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
 
     if save:
         if save_model is not None:
-            torch.save(network,datadir + 'results/model/' + save_model)
+            torch.save(network,save_model)
 
     return network, online_accuracy
 

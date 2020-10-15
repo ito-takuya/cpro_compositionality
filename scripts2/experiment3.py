@@ -55,6 +55,7 @@ def run(args):
     cuda = args.cuda
     verbose = args.verbose
 
+    outputdir = datadir + '/results/experiment3/'
 
     #save_model = save_model + '_' + batchname
     save_model = save_model + '_' + optimizer
@@ -197,7 +198,7 @@ def run(args):
             #if verbose: print('** TRAINING ON', n_practiced_tasks, 'PRACTICED TASKS ** ... simulation', sim, ' |', modelname, '| cuda:', cuda)
             network, acc = trainANN.train(experiment,si_c=si_c,n_epochs=n_epochs,datadir=datadir,practice=practice,optimizer=optimizer,
                                           num_hidden=num_hidden,num_hidden_layers=num_layers,learning_rate=learning_rate,save=save,
-                                          save_model=modelname+'.pt',verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
+                                          save_model=outputdir+modelname+'.pt',verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
         
 
             network.eval()
@@ -261,8 +262,6 @@ def run(args):
             n_practiced_tasks += 1
 
 
-        outputdir = datadir + '/results/experiment3/'
-        
         df_sim = pd.DataFrame(df_sim) 
         df_sim.to_csv(outputdir + save_model + '_simData' + str(sim) + '.csv')
 
