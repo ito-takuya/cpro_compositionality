@@ -602,7 +602,7 @@ def _create_logicalsensory_pretraining_rules():
                 
     return pd.DataFrame(taskrules)
 
-def _solve_sensorimotor_pretraining_task(task_rules,stimuli,printTask=False):
+def _solve_sensorimotor_pretraining_task(task_rules,stimuli,negation=False,printTask=False):
     """
     Solves simple stimulus-response associations given a stimulus, sensory rule, and motor rule 
     'stim' parameter indicates whether one should focus on the first or second stim
@@ -654,10 +654,16 @@ def _solve_sensorimotor_pretraining_task(task_rules,stimuli,printTask=False):
             motorOutput = 'r_mid'
 
     outputcode = np.zeros((4,))
-    if motorOutput=='l_mid': outputcode[0] = 1
-    if motorOutput=='l_ind': outputcode[1] = 1
-    if motorOutput=='r_mid': outputcode[2] = 1
-    if motorOutput=='r_ind': outputcode[3] = 1
+    if not negation: # normal task 
+        if motorOutput=='l_mid': outputcode[0] = 1
+        if motorOutput=='l_ind': outputcode[1] = 1
+        if motorOutput=='r_mid': outputcode[2] = 1
+        if motorOutput=='r_ind': outputcode[3] = 1
+    else: # remember if negation, need to include the 'not' rule 
+        if motorOutput=='l_mid': outputcode[1] = 1
+        if motorOutput=='l_ind': outputcode[0] = 1
+        if motorOutput=='r_mid': outputcode[3] = 1
+        if motorOutput=='r_ind': outputcode[2] = 1
 
     return motorOutput, outputcode
 
@@ -828,7 +834,7 @@ def create_motorrule_pretraining():
             
     return input_matrix, output_matrix 
 
-def create_sensorimotor_pretraining():
+def create_sensorimotor_pretraining(negation=False):
     """
     Creates simple pretraining tasks 
     motor rule only (i.e., motor rule -> motor response)
@@ -856,11 +862,14 @@ def create_sensorimotor_pretraining():
             ## Create trial array -- 1st stim
             # Find input code for this task set
             input_arr[rule_ind] = taskRuleSet.Code[tasknum] 
+            # If this is the 'negation' version of the task, make sure to include all 1s for the 'not' rule
+            if negation: input_arr[0] = 1
+            #
             input_arr[stim_ind] = stimuliSet.Code[i]
             input_matrix.append(input_arr)
 
             # Solve task to get the output code
-            tmpresp, out_code = _solve_sensorimotor_pretraining_task(taskRuleSet.iloc[tasknum],stimuliSet.iloc[i])
+            tmpresp, out_code = _solve_sensorimotor_pretraining_task(taskRuleSet.iloc[tasknum],stimuliSet.iloc[i],negation=negation)
             output_matrix.append(np.where(out_code)[0][0])
 
     input_matrix = np.asarray(input_matrix)
