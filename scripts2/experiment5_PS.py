@@ -1,4 +1,5 @@
-#### Experiment 3
+#### Experiment 5
+# Same as experiment 3, but read out the PS score
 # for each simulation, incrementally train additional tasks (i.e., include more practiced tasks) and assess performance etc.
 # fix number of epochs of data trained on, rather than using an 'accuracy cut-off'
 
@@ -31,6 +32,7 @@ parser.add_argument('--cuda', action='store_true', help="use gpu/cuda")
 parser.add_argument('--save_model', type=str, default="ANN", help='string name to output models')
 parser.add_argument('--verbose', action='store_true', help='verbose')
 parser.add_argument('--num_hidden', type=int, default=256, help="number of units in hidden layers")
+parser.add_argument('--num_layers', type=int, default=2, help="number of hidden layers")
 parser.add_argument('--learning_rate', type=float, default=0.001, help="learning rate for pretraining sessions (ADAM default)")
 parser.add_argument('--save', action='store_true', help="save or don't save model")
 parser.add_argument('--batchname', type=str, default='Experiment_FullTaskSet_11LogicInputs', help='string name for the experiment filename')
@@ -45,6 +47,7 @@ def run(args):
     n_epochs = args.nepochs
     optimizer = args.optimizer
     num_hidden = args.num_hidden
+    num_layers = args.num_layers
     learning_rate = args.learning_rate
     save_model = args.save_model
     save = args.save
@@ -54,9 +57,14 @@ def run(args):
     verbose = args.verbose
 
 
+
+
+    outputdir = datadir + '/results/experiment5/'
+
     #save_model = save_model + '_' + batchname
     save_model = save_model + '_' + optimizer
     save_model = save_model + '_' + str(int(n_epochs)) + 'epochs'
+    save_model = save_model + '_' + str(int(num_layers)) + 'layers'
     if pretraining:
         save_model = save_model + '_pretraining'
 
@@ -190,11 +198,13 @@ def run(args):
 
         n_practiced_tasks = len(experiment.practicedRuleSet)
         while n_practiced_tasks < len(experiment.taskRuleSet):
+        #while n_practiced_tasks < 5:
             modelname = save_model + str(sim)
             #if verbose: print('** TRAINING ON', n_practiced_tasks, 'PRACTICED TASKS ** ... simulation', sim, ' |', modelname, '| cuda:', cuda)
             network, acc = trainANN.train(experiment,si_c=si_c,n_epochs=n_epochs,datadir=datadir,practice=practice,optimizer=optimizer,
-                                          num_hidden=num_hidden,learning_rate=learning_rate,save=save,
-                                          save_model=modelname+'.pt',verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
+                                          num_hidden=num_hidden,num_hidden_layers=num_layers,learning_rate=learning_rate,save=save,
+                                          save_model=outputdir+modelname+'_' + str(n_practiced_tasks) + 'practiceTasks.pt',
+                                          verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
         
 
             network.eval()
@@ -256,9 +266,6 @@ def run(args):
             experiment.novel_targets = experiment.novel_targets[new_novel_ind,:]
 
             n_practiced_tasks += 1
-
-
-        outputdir = datadir + '/results/experiment3/'
         
         df_sim = pd.DataFrame(df_sim) 
         df_sim.to_csv(outputdir + save_model + '_simData' + str(sim) + '.csv')

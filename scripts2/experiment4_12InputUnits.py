@@ -34,7 +34,7 @@ parser.add_argument('--verbose', action='store_true', help='verbose')
 parser.add_argument('--num_hidden', type=int, default=256, help="number of units in hidden layers")
 parser.add_argument('--learning_rate', type=float, default=0.001, help="learning rate for pretraining sessions (ADAM default)")
 parser.add_argument('--save', action='store_true', help="save or don't save model")
-parser.add_argument('--batchname', type=str, default='Experiment_FullTaskSet_11LogicInputs', help='string name for the experiment filename')
+parser.add_argument('--batchname', type=str, default='Experiment_FullTaskSet_12LogicInputs', help='string name for the experiment filename')
 parser.add_argument('--si_c', type=float, default=0.0, help='synaptic intelligence parameter (Zenke et al. 2017); default=0, meaning no synaptic intelligence implemented')
 
 
@@ -55,6 +55,8 @@ def run(args):
     verbose = args.verbose
 
 
+    outputdir = datadir + '/results/experiment4/'
+        
     #save_model = save_model + '_' + batchname
     save_model = save_model + '_' + optimizer
     save_model = save_model + '_' + str(int(n_epochs)) + 'epochs'
@@ -195,7 +197,7 @@ def run(args):
             #if verbose: print('** TRAINING ON', n_practiced_tasks, 'PRACTICED TASKS ** ... simulation', sim, ' |', modelname, '| cuda:', cuda)
             network, acc = trainANN.train(experiment,si_c=si_c,n_epochs=n_epochs,datadir=datadir,practice=practice,optimizer=optimizer,
                                           num_rule_inputs=12,num_hidden=num_hidden,learning_rate=learning_rate,save=save,
-                                          save_model=modelname+'.pt',verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
+                                          save_model=outputdir+modelname+'.pt',verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
         
 
             network.eval()
@@ -259,8 +261,6 @@ def run(args):
             n_practiced_tasks += 1
 
 
-        outputdir = datadir + '/results/experiment4/'
-        
         df_sim = pd.DataFrame(df_sim) 
         df_sim.to_csv(outputdir + save_model + '_simData' + str(sim) + '.csv')
 

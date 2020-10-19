@@ -82,6 +82,23 @@ class Experiment(object):
 
         return taskSim1Set, taskSim2Set
 
+    def addPracticedTasks(self,n=1,ordered=False):
+        """
+        adds additional novel tasks to the 'practicedRuleSet' variable
+        """
+        if ordered:
+            novel2prac_ind = np.arange(n) 
+        else:
+            novel2prac_ind = np.random.choice(self.novelRuleSet.index,n,replace=False)
+
+        # Add to random tasks to the practiced set
+        practicedRuleSet = self.practicedRuleSet.append(self.novelRuleSet.iloc[novel2prac_ind],ignore_index=True)
+
+        novelRuleSet = self.novelRuleSet.drop(novel2prac_ind,axis='index')
+        novelRuleSet = novelRuleSet.reset_index(drop=True) # reset index, don't create new index column
+
+        return practicedRuleSet, novelRuleSet, novel2prac_ind
+
 def create_random_trials(taskRuleSet,ntrials_per_task,seed):
     """
     Randomly generates a set of stimuli (nStimuli) for each task rule

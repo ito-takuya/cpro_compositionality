@@ -156,7 +156,7 @@ def create_random_trials(taskRuleSet,ntrials_per_task,seed):
     #output_matrix = np.vstack((output_matrix,tmp_zeros))
     return input_matrix, output_matrix 
 
-def create_all_trials(taskRuleSet):
+def create_all_trials(taskRuleSet,output_taskinfo=False):
     """
     Creates all possible trials given a task rule set (iterates through all possible stimulus combinations)
     Will end up with 64 (task rules) * nStimuli total number of input stimuli
@@ -174,6 +174,12 @@ def create_all_trials(taskRuleSet):
     taskRuleSet = taskRuleSet.reset_index(drop=False)
     #taskRuleSet = taskRuleSet2.copy(deep=True)
 
+    # Create taskinfo data frame to keep track of specific trial types
+    taskinfo = {}
+    taskinfo['Logic'] = []
+    taskinfo['Sensory'] = []
+    taskinfo['Motor'] = []
+
     ntrials_total = len(stimuliSet) * len(taskRuleSet)
     ####
     # Construct trial dynamics
@@ -188,6 +194,11 @@ def create_all_trials(taskRuleSet):
         trialcount = 0
         for i in stimuliSet.index:
     
+            # Create full task design dataframe
+            taskinfo['Logic'].append(taskRuleSet.Logic[tasknum])
+            taskinfo['Sensory'].append(taskRuleSet.Sensory[tasknum])
+            taskinfo['Motor'].append(taskRuleSet.Motor[tasknum])
+
             ## Create trial array
             # Find input code for this task set
             input_matrix[rule_ind,trialcount,tasknum] = taskRuleSet.Code[tasknum] 
@@ -203,7 +214,10 @@ def create_all_trials(taskRuleSet):
     # Pad output with 2 additional units for pretraining tasks
     #tmp_zeros = np.zeros((2,output_matrix.shape[1],output_matrix.shape[2]))
     #output_matrix = np.vstack((output_matrix,tmp_zeros))
-    return input_matrix, output_matrix 
+    if output_taskinfo:
+        return input_matrix, output_matrix, pd.DataFrame(taskinfo)
+    else:
+        return input_matrix, output_matrix 
 
 def createSensoryInputs(nStims=2):
     stimdata = {}
@@ -547,8 +561,8 @@ def _create_logicalsensory_pretraining_rules():
     """    
     logicRules = {'both':1,
                   'either':2,
-                  'notboth':[1,0],
-                  'neither':[2,0]} # 0 - 'not', 1 - 'both', 2 - 'either'
+                  'notboth':[0,1],
+                  'neither':[0,2]} # 0 - 'not', 1 - 'both', 2 - 'either'
     sensoryRules = {'red':3,
                     'vertical':4,
                     'high':5,
@@ -588,7 +602,7 @@ def _create_logicalsensory_pretraining_rules():
                 
     return pd.DataFrame(taskrules)
 
-def _solve_sensorimotor_pretraining_task(task_rules,stimuli,printTask=False):
+def _solve_sensorimotor_pretraining_task(task_rules,stimuli,negation=False,printTask=False):
     """
     Solves simple stimulus-response associations given a stimulus, sensory rule, and motor rule 
     'stim' parameter indicates whether one should focus on the first or second stim
@@ -640,10 +654,16 @@ def _solve_sensorimotor_pretraining_task(task_rules,stimuli,printTask=False):
             motorOutput = 'r_mid'
 
     outputcode = np.zeros((4,))
-    if motorOutput=='l_mid': outputcode[0] = 1
-    if motorOutput=='l_ind': outputcode[1] = 1
-    if motorOutput=='r_mid': outputcode[2] = 1
-    if motorOutput=='r_ind': outputcode[3] = 1
+    if not negation: # normal task 
+        if motorOutput=='l_mid': outputcode[0] = 1
+        if motorOutput=='l_ind': outputcode[1] = 1
+        if motorOutput=='r_mid': outputcode[2] = 1
+        if motorOutput=='r_ind': outputcode[3] = 1
+    else: # remember if negation, need to include the 'not' rule 
+        if motorOutput=='l_mid': outputcode[1] = 1
+        if motorOutput=='l_ind': outputcode[0] = 1
+        if motorOutput=='r_mid': outputcode[3] = 1
+        if motorOutput=='r_ind': outputcode[2] = 1
 
     return motorOutput, outputcode
 
@@ -814,7 +834,7 @@ def create_motorrule_pretraining():
             
     return input_matrix, output_matrix 
 
-def create_sensorimotor_pretraining():
+def create_sensorimotor_pretraining(negation=False):
     """
     Creates simple pretraining tasks 
     motor rule only (i.e., motor rule -> motor response)
@@ -842,11 +862,14 @@ def create_sensorimotor_pretraining():
             ## Create trial array -- 1st stim
             # Find input code for this task set
             input_arr[rule_ind] = taskRuleSet.Code[tasknum] 
+            # If this is the 'negation' version of the task, make sure to include all 1s for the 'not' rule
+            if negation: input_arr[0] = 1
+            #
             input_arr[stim_ind] = stimuliSet.Code[i]
             input_matrix.append(input_arr)
 
             # Solve task to get the output code
-            tmpresp, out_code = _solve_sensorimotor_pretraining_task(taskRuleSet.iloc[tasknum],stimuliSet.iloc[i])
+            tmpresp, out_code = _solve_sensorimotor_pretraining_task(taskRuleSet.iloc[tasknum],stimuliSet.iloc[i],negation=negation)
             output_matrix.append(np.where(out_code)[0][0])
 
     input_matrix = np.asarray(input_matrix)

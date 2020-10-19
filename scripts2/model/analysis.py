@@ -119,7 +119,8 @@ def rsa_behavior(network,tasks_input,tasks_output,measure='corr'):
         for resp in responses:
             resp = resp.item()
             ind = torch.where(tasks_output[t,:]==resp)[0]
-            responses_per_task[:,t,int(resp)] = np.mean(hidden[:,ind].detach().cpu().numpy(),axis=1) # compute the mean activation for this response
+            #responses_per_task[:,t,int(resp)] = np.mean(hidden[:,ind].detach().cpu().numpy(),axis=1) # compute the mean activation for this response
+            responses_per_task[:,t,int(resp)] = np.mean(hidden[ind,:].detach().cpu().numpy(),axis=0) # compute the mean activation for this response
 
     response_activations = np.mean(responses_per_task,axis=1)
     response_activations = response_activations.T # transpose to response x num_hidden

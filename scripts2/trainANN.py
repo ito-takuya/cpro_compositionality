@@ -14,7 +14,7 @@ import pandas as pd
 datadir = '../../data/'
 
 def train(experiment,si_c=0,datadir=datadir,practice=True,
-          num_rule_inputs=11,num_hidden=128,learning_rate=0.0001,
+          num_rule_inputs=11,num_hidden=128,num_hidden_layers=2,learning_rate=0.0001,
           acc_cutoff=95.0,n_epochs=None,optimizer='adam',
           save_model=None,verbose=True,save=True,
           lossfunc='MSE',pretraining=False,device='cpu'):
@@ -28,6 +28,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
     network = mod.ANN(num_rule_inputs=num_rule_inputs,
                          si_c=si_c,
                          num_sensory_inputs=16,
+                         num_hidden_layers=num_hidden_layers,
                          num_hidden=num_hidden,
                          num_motor_decision_outputs=6,
                          learning_rate=learning_rate,
@@ -62,6 +63,11 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         logicalsensory_pretraining_input = experiment.logicalsensory_pretraining_input
         logicalsensory_pretraining_output= experiment.logicalsensory_pretraining_output
 
+        if hasattr(experiment,'posneg'):
+            sensorimotor_pretraining_input_neg = experiment.sensorimotor_pretraining_input_neg
+            sensorimotor_pretraining_output_neg = experiment.sensorimotor_pretraining_output_neg
+
+
         ##### First motor rule only pretraining
 #        loss = 1
 #        while loss>0.01: 
@@ -84,8 +90,13 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         ##### Now train on simple logicalsensory rule pretraining
         loss1 = 1
         loss2 = 1
+        # If there's the negative equivalent of the sensorimotor task, then make sure it trains loss
+        if hasattr(experiment,'posneg'):
+            loss3 = 1
+        else: 
+            loss3 = 0
         count = 0
-        while loss1>0.01 or loss2>0.01: 
+        while loss1>0.01 or loss2>0.01 or loss3>0.01: 
 
             ##### Motor rule pretraining
             #outputs, targets, loss = mod.train(network,
@@ -106,6 +117,12 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
                                                sensorimotor_pretraining_input,
                                                sensorimotor_pretraining_output,
                                                si=W,dropout=True)
+
+            if hasattr(experiment,'posneg'):
+                outputs, targets, loss3 = mod.train(network,
+                                                   sensorimotor_pretraining_input_neg,
+                                                   sensorimotor_pretraining_output_neg,
+                                                   si=W,dropout=True)
 
             #accuracy2 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
@@ -130,7 +147,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
     online_accuracy=[]
     if practice:
         if optimizer =='sgd':
-            network.optimizer = torch.optim.SGD(network.parameters(), lr=0.01)
+            network.optimizer = torch.optim.SGD(network.parameters(), lr=0.01,momentum=0.9)
             #network.optimizer = torch.optim.SGD(network.parameters(), lr=0.025)
         if optimizer == 'adam':
             network.optimizer = torch.optim.Adam(network.parameters(), lr=0.0001)
@@ -211,7 +228,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
 
     if save:
         if save_model is not None:
-            torch.save(network,datadir + 'results/model/' + save_model)
+            torch.save(network,save_model)
 
     return network, online_accuracy
 
