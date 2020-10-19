@@ -197,8 +197,8 @@ def run(args):
         df_pertask['NumPracticedTasks'] = []
 
         n_practiced_tasks = len(experiment.practicedRuleSet)
-        #while n_practiced_tasks < len(experiment.taskRuleSet):
-        while n_practiced_tasks < 5:
+        while n_practiced_tasks < len(experiment.taskRuleSet):
+        #while n_practiced_tasks < 5:
             modelname = save_model + str(sim)
             #if verbose: print('** TRAINING ON', n_practiced_tasks, 'PRACTICED TASKS ** ... simulation', sim, ' |', modelname, '| cuda:', cuda)
             network, acc = trainANN.train(experiment,si_c=si_c,n_epochs=n_epochs,datadir=datadir,practice=practice,optimizer=optimizer,

@@ -63,6 +63,11 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         logicalsensory_pretraining_input = experiment.logicalsensory_pretraining_input
         logicalsensory_pretraining_output= experiment.logicalsensory_pretraining_output
 
+        if hasattr(experiment,'posneg'):
+            sensorimotor_pretraining_input_neg = experiment.sensorimotor_pretraining_input_neg
+            sensorimotor_pretraining_output_neg = experiment.sensorimotor_pretraining_output_neg
+
+
         ##### First motor rule only pretraining
 #        loss = 1
 #        while loss>0.01: 
@@ -85,8 +90,13 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         ##### Now train on simple logicalsensory rule pretraining
         loss1 = 1
         loss2 = 1
+        # If there's the negative equivalent of the sensorimotor task, then make sure it trains loss
+        if hasattr(experiment,'posneg'):
+            loss3 = 1
+        else: 
+            loss3 = 0
         count = 0
-        while loss1>0.01 or loss2>0.01: 
+        while loss1>0.01 or loss2>0.01 or loss3>0.01: 
 
             ##### Motor rule pretraining
             #outputs, targets, loss = mod.train(network,
@@ -107,6 +117,12 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
                                                sensorimotor_pretraining_input,
                                                sensorimotor_pretraining_output,
                                                si=W,dropout=True)
+
+            if hasattr(experiment,'posneg'):
+                outputs, targets, loss3 = mod.train(network,
+                                                   sensorimotor_pretraining_input_neg,
+                                                   sensorimotor_pretraining_output_neg,
+                                                   si=W,dropout=True)
 
             #accuracy2 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
