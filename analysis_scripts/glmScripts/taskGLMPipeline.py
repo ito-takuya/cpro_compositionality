@@ -23,7 +23,6 @@ datadir = projectdir + 'data/processedData/'
 framesToSkip = 5
 # Define list of subjects
 subjNums = ['013','014','016','017','018','021','023','024','026','027','028','030','031','032','033','034','035','037','038','039','040','041','042','043','045','046','047','048','049','050','053','055','056','057','058','062','063','066','067','068','069','070','072','074','075','076','077','081','085','086','087','088','090','092','093','094','095','097','098','099','101','102','103','104','105','106','108','109','110','111','112','114','115','117','119','120','121','122','123','124','125','126','127','128','129','130','131','132','134','135','136','137','138','139','140','141']
-subjNums = ['016','017','018','021','023','024','026','027','028','030','031','032','033','034','035','037','038','039','040','041','042','043','045','046','047','048','049','050','053','055','056','057','058','062','063','066','067','068','069','070','072','074','075','076','077','081','085','086','087','088','090','092','093','094','095','097','098','099','101','102','103','104','105','106','108','109','110','111','112','114','115','117','119','120','121','122','123','124','125','126','127','128','129','130','131','132','134','135','136','137','138','139','140','141']
 # Define all runs you want to preprocess
 allRuns = ['Task1', 'Task2', 'Task3', 'Task4', 'Task5', 'Task6', 'Task7', 'Task8']
 taskRuns = ['Task1', 'Task2', 'Task3', 'Task4', 'Task5', 'Task6', 'Task7', 'Task8']
@@ -141,11 +140,19 @@ def loadTaskTiming(subj, task='betaSeries', taskModel='canonical'):
 
         #stimMat = np.hstack((logic,sensory,motor,colorStim,oriStim,pitchStim,constantStim,motorResp))
         stimIndex = []
-        stimIndex.extend(np.repeat('Miniblock',128))
+        stimIndex.extend(np.repeat('Encoding',128))
         for i in range(128): # num miniblockss
             stimIndex.extend('Probe1')
             stimIndex.extend('Probe2')
             stimIndex.extend('Probe3')
+
+    if task=='betaSeriesWholeBlock':
+        # rules
+        stimMat = dmat.loadBetaSeriesWholeBlock(subj)
+
+        #stimMat = np.hstack((logic,sensory,motor,colorStim,oriStim,pitchStim,constantStim,motorResp))
+        stimIndex = []
+        stimIndex.extend(np.repeat('Block',128))
 
     nTRsPerRun = int(stimMat.shape[0]/nRunsPerTask)
 

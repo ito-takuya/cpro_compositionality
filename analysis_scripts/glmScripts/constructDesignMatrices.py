@@ -39,6 +39,26 @@ def loadBetaSeries(subj):
 
     return regressorMat
 
+def loadBetaSeriesWholeBlock(subj):
+    """
+    returns a regressor for the ENTIRE miniblock, not just encoding period
+    """
+    n_miniblocks = 128
+    # First 128 regressors are encoding miniblock regressors
+    regressors = []
+    for mb in range(1,n_miniblocks+1): 
+        enc = glob.glob(stimdir + subj + '*Miniblock' + str(mb) + '_Encoding.1D')
+        enc = np.loadtxt(enc[0])
+        first_ind = np.where(enc==1)[0][0]
+        enc[first_ind:first_ind+36] = 1.0 # whole miniblock lasts 36 TRs
+        regressors.append(enc)
+
+
+
+    regressorMat = np.asarray(regressors).T # Transform to time x regressors
+
+    return regressorMat
+
 #def loadLogic(subj):
 #    logic_stims = stimdir + 'cproLogicRules/'
 #
