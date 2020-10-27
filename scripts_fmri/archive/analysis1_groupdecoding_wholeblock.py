@@ -31,8 +31,6 @@ rois = np.arange(1,361)
 
 parser = argparse.ArgumentParser('./main.py', description='Run group decoding analysis on encoding miniblocks')
 parser.add_argument('--novelty', action='store_true', help="Run novelty decoding")
-parser.add_argument('--negations', action='store_true', help="Run decoding of negations (e.g., BOTH&EITHER VS. NOTBOTH&NEITHER")
-parser.add_argument('--performance', action='store_true', help="Run decoding of behavioral task performance (e.g., Correct VS. Incorrect")
 parser.add_argument('--task64', action='store_true', help="Run 64-way decoding")
 parser.add_argument('--logic', action='store_true', help="Run Logic rule decoding")
 parser.add_argument('--sensory', action='store_true', help="Run sensory rule decoding")
@@ -41,15 +39,13 @@ parser.add_argument('--nproc', type=int, default=10, help="num parallel processe
 parser.add_argument('--kfold',type=int, default=10, help="number of CV folds (DEFAULT: 10)")
 parser.add_argument('--normalize', action='store_true', help="Normalize features (DEFAULT: FALSE")
 parser.add_argument('--classifier',type=str, default='distance', help="decoding method DEFAULT: 'distance' [distance, svm, logistic]")
-parser.add_argument('--num_permutations', type=int, default=1000, help="Permuation -- shuffle training labels (DEFAULT: 1000 permutations")
+parser.add_argument('--permutation', action='store_true', help="Permuation -- shuffle training labels (DEFAULT: FALSE")
 
 
 
 def run(args):
     args 
     novelty = args.novelty
-    negations = args.negations
-    performance = args.performance
     task64 = args.task64
     logic = args.logic
     sensory = args.sensory
@@ -58,9 +54,7 @@ def run(args):
     kfold = args.kfold
     normalize = args.normalize
     classifier = args.classifier
-    num_permutations = args.num_permutations
-
-    permutation = True # this is the permutation script
+    permutation = args.permutation
 
     ##############################################################
     #### Set decoding parameters
@@ -75,7 +69,7 @@ def run(args):
     ##############################################################
     #### Load fMRI data
     print('Loading data...')
-    h5f = h5py.File(datadir + 'Data_EncodingMiniblock_AllSubjs.h5')
+    h5f = h5py.File(datadir + 'Data_WholeMiniblock_AllSubjs.h5','r')
     fmri = h5f['data'][:]
     fmri = np.real(fmri)
     h5f.close()
@@ -92,44 +86,6 @@ def run(args):
     df_all = tools.loadGroupBehavioralData(subjNums)
     # Make sure to only have one sample per task (rather than for each trial, since we're only decoding miniblocks)
     df = df_all.loc[df_all.TrialLabels=='Trial1']
-    
-    #### Replace Trial 1 performance with assessment of whether all trials were correct
-    # Create performance labels (perfect v. imperfect - perfect meaning all trials are correct within each miniblock)
-    performance_labels = []
-    tmp = df_all.reset_index() # Reset index, start from 0
-    ind = 0
-    while ind <= np.max(tmp.index.values):
-        tmp_acc = [] # if all 3 trials are correct, leave as True
-        if tmp.TaskPerformance.values[ind]=='Correct': 
-            tmp_acc.append(1)
-        else:
-            tmp_acc.append(0)
-
-        if tmp.TaskPerformance.values[ind+1]=='Correct': 
-            tmp_acc.append(1)
-        else:
-            tmp_acc.append(0)
-        
-        if tmp.TaskPerformance.values[ind+2]=='Correct': 
-            tmp_acc.append(1)
-        else:
-            tmp_acc.append(0)
-
-        tmp_acc = np.asarray(tmp_acc)
-
-        if np.sum(tmp_acc)>=3: # If accuracy for this block is above 50%
-            performance_labels.append(1)
-        else:
-            performance_labels.append(0)
-        ind += 3 # go to next miniblock
-
-    # Now replace performance of Trial 1 with the new performance label
-    del df['TaskPerformance']
-    df.insert(0,'TaskPerformance',performance_labels,True)
-    #### END
-        
-        
-
 
     ######################################
     #### 64 context decoding
@@ -166,7 +122,7 @@ def run(args):
             del tmp['Stim2_Constant'], tmp['MotorResponses']
             tmp.insert(0,'DecodingAccuracy',accuracies[i],True)
             tmp.insert(0,'ROI',np.repeat(roi,len(tmp)),True)
-            tmp.to_csv(resultdir + 'CrossSubject64TaskDecoding/CrossSubject' + strlabel + '64TaskDecoding_roi' + str(roi) + '.csv')
+            tmp.to_csv(resultdir + 'CrossSubject64TaskDecoding/CrossSubjectWholeBlock' + strlabel + '64TaskDecoding_roi' + str(roi) + '.csv')
             
             i += 1
 
@@ -205,7 +161,7 @@ def run(args):
             del tmp['Stim2_Constant'], tmp['MotorResponses']
             tmp.insert(0,'DecodingAccuracy',accuracies[i],True)
             tmp.insert(0,'ROI',np.repeat(roi,len(tmp)),True)
-            tmp.to_csv(resultdir + 'CrossSubjectLogicRuleDecoding/CrossSubject' + strlabel + 'LogicRuleDecoding_roi' + str(roi) + '.csv')
+            tmp.to_csv(resultdir + 'CrossSubjectLogicRuleDecoding/CrossSubjectWholeBlock' + strlabel + 'LogicRuleDecoding_roi' + str(roi) + '.csv')
             
             i += 1
 
@@ -245,7 +201,7 @@ def run(args):
             del tmp['Stim2_Constant'], tmp['MotorResponses']
             tmp.insert(0,'DecodingAccuracy',accuracies[i],True)
             tmp.insert(0,'ROI',np.repeat(roi,len(tmp)),True)
-            tmp.to_csv(resultdir + 'CrossSubjectSensoryRuleDecoding/CrossSubject' + strlabel + 'SensoryRuleDecoding_roi' + str(roi) + '.csv')
+            tmp.to_csv(resultdir + 'CrossSubjectSensoryRuleDecoding/CrossSubjectWholeBlock' + strlabel + 'SensoryRuleDecoding_roi' + str(roi) + '.csv')
             
             i += 1
 
@@ -285,12 +241,12 @@ def run(args):
             del tmp['Stim2_Constant'], tmp['MotorResponses']
             tmp.insert(0,'DecodingAccuracy',accuracies[i],True)
             tmp.insert(0,'ROI',np.repeat(roi,len(tmp)),True)
-            tmp.to_csv(resultdir + 'CrossSubjectMotorRuleDecoding/CrossSubject' + strlabel + 'MotorRuleDecoding_roi' + str(roi) + '.csv')
+            tmp.to_csv(resultdir + 'CrossSubjectMotorRuleDecoding/CrossSubjectWholeBlock' + strlabel + 'MotorRuleDecoding_roi' + str(roi) + '.csv')
             
             i += 1
 
     ######################################
-    #### Novelty decoding
+    #### Motor rule decoding
     if novelty:
         print('Running Novelty decoding...')
 
@@ -317,150 +273,37 @@ def run(args):
         subj_labels2 = np.asarray(subj_labels2)
         task_labels2 = np.asarray(task_labels2)
 
-        null_dist = np.zeros((len(rois),num_permutations))
-        for perm in range(num_permutations):
-            inputs = []
-            for roi in rois:
-                roi_ind = np.where(glasser==roi)[0]
-                roi_data = data_mat2[:,roi_ind]
-                inputs.append((roi_data,subj_labels2,task_labels2,kfold,normalize,classifier,confusion,permutation,np.random.randint(10000000)))
+        inputs = []
+        for roi in rois:
+            roi_ind = np.where(glasser==roi)[0]
+            roi_data = data_mat2[:,roi_ind]
+            inputs.append((roi_data,subj_labels2,task_labels2,kfold,normalize,classifier,confusion,permutation,roi))
 
-            pool = mp.Pool(processes=nproc)
-            results = pool.starmap_async(tools.decodeGroup,inputs).get()
-            pool.close()
-            pool.join()
+        pool = mp.Pool(processes=nproc)
+        results = pool.starmap_async(tools.decodeGroup,inputs).get()
+        pool.close()
+        pool.join()
 
-            accuracies = []
-            confusion_mats = []
-            for result in results:
-                acc, confusion_mat = result[0], result[1]
-                accuracies.append(np.mean(acc))
+        accuracies = []
+        confusion_mats = []
+        for result in results:
+            acc, confusion_mat = result[0], result[1]
+            accuracies.append(acc)
+            confusion_mats.append(confusion_mat)
 
-            null_dist[:,perm] = np.asarray(accuracies)
-            #print(null_dist[:,perm])
-            print('Running permutation', perm,'/', num_permutations, '| Max accuracy for perm (across all ROIs):', np.max(null_dist[:,perm]))
+        #### Save accuracy data to pandas csv    
+        tmp = {}
+        tmp['ROI'] = []
+        tmp['DecodingAccuracy'] = []
+        i = 0
+        for roi in rois:
+            tmp['DecodingAccuracy'].extend(accuracies[i])
+            tmp['ROI'].extend(np.repeat(roi,len(accuracies[i])))
+            i += 1
 
-        np.savetxt(resultdir + 'CrossSubjectNoveltyDecoding/CrossSubject' + strlabel + 'NoveltyDecoding_NullDistribution.csv',null_dist)
+        tmp = pd.DataFrame(data=tmp)
+        tmp.to_csv(resultdir + 'CrossSubjectNoveltyDecoding/CrossSubjectWholeBlock' + strlabel + 'NoveltyDecoding_allROIs.csv')
 
-
-    ######################################
-    #### Negations decoding
-    if negations:
-        print('Running Negations decoding...')
-
-        # pull out labels of interest
-        rule_labels = df.LogicRules.values
-        affirmative_rules = ['**BOTH**','*EITHER*']
-        negative_rules = ['NEITHER*','NOT*BOTH']
-        task_labels = []
-        for rule in rule_labels:
-            if rule in affirmative_rules: task_labels.append('Affirmative')
-            if rule in negative_rules: task_labels.append('Negative')
-
-        task_labels = np.asarray(task_labels)
-
-        subj_labels = df.Subject.values
-        # Need to make only practiced v novel activations for each subject
-        unique_subjs = np.unique(subj_labels)
-        unique_task = np.unique(task_labels)
-        data_mat2 = [] 
-        subj_labels2 = []
-        task_labels2 = []
-        for subj in unique_subjs:
-            subj_ind = np.where(subj_labels==subj)[0]
-            for task in unique_task:
-                task_ind = np.where(task_labels==task)[0]
-                subjtask_ind = np.intersect1d(task_ind,subj_ind)
-                # compute average activation of task condition for this subject
-                data_mat2.append(np.mean(data_mat[subjtask_ind,:],axis=0))
-                # Recreate new labels
-                subj_labels2.append(subj)
-                task_labels2.append(task)
-        data_mat2 = np.asarray(data_mat2)
-        subj_labels2 = np.asarray(subj_labels2)
-        task_labels2 = np.asarray(task_labels2)
-    
-
-        null_dist = np.zeros((len(rois),num_permutations))
-        for perm in range(num_permutations):
-            inputs = []
-            for roi in rois:
-                roi_ind = np.where(glasser==roi)[0]
-                roi_data = data_mat2[:,roi_ind]
-                inputs.append((roi_data,subj_labels2,task_labels2,kfold,normalize,classifier,confusion,permutation,np.random.randint(10000000)))
-
-            pool = mp.Pool(processes=nproc)
-            results = pool.starmap_async(tools.decodeGroup,inputs).get()
-            pool.close()
-            pool.join()
-
-            accuracies = []
-            confusion_mats = []
-            for result in results:
-                acc, confusion_mat = result[0], result[1]
-                accuracies.append(np.mean(acc))
-
-            null_dist[:,perm] = np.asarray(accuracies)
-            #print(null_dist[:,perm])
-            print('Running permutation', perm,'/', num_permutations, '| Max accuracy for perm (across all ROIs):', np.max(null_dist[:,perm]))
-
-        np.savetxt(resultdir + 'CrossSubjectLogicalNegationDecoding/CrossSubject' + strlabel + 'LogicalNegationDecoding_NullDistribution.csv',null_dist)
-
-
-    ######################################
-    #### Performance decoding
-    if performance:
-        print('Running Performance decoding...')
-
-        # pull out labels of interest
-        task_labels = df.TaskPerformance.values
-
-        subj_labels = df.Subject.values
-        # Need to make only practiced v novel activations for each subject
-        unique_subjs = np.unique(subj_labels)
-        unique_task = np.unique(task_labels)
-        data_mat2 = [] 
-        subj_labels2 = []
-        task_labels2 = []
-        for subj in unique_subjs:
-            subj_ind = np.where(subj_labels==subj)[0]
-            for task in unique_task:
-                task_ind = np.where(task_labels==task)[0]
-                subjtask_ind = np.intersect1d(task_ind,subj_ind)
-                # compute average activation of task condition for this subject
-                data_mat2.append(np.mean(data_mat[subjtask_ind,:],axis=0))
-                # Recreate new labels
-                subj_labels2.append(subj)
-                task_labels2.append(task)
-        data_mat2 = np.asarray(data_mat2)
-        subj_labels2 = np.asarray(subj_labels2)
-        task_labels2 = np.asarray(task_labels2)
-    
-
-        null_dist = np.zeros((len(rois),num_permutations))
-        for perm in range(num_permutations):
-            inputs = []
-            for roi in rois:
-                roi_ind = np.where(glasser==roi)[0]
-                roi_data = data_mat2[:,roi_ind]
-                inputs.append((roi_data,subj_labels2,task_labels2,kfold,normalize,classifier,confusion,permutation,np.random.randint(10000000)))
-
-            pool = mp.Pool(processes=nproc)
-            results = pool.starmap_async(tools.decodeGroup,inputs).get()
-            pool.close()
-            pool.join()
-
-            accuracies = []
-            confusion_mats = []
-            for result in results:
-                acc, confusion_mat = result[0], result[1]
-                accuracies.append(np.mean(acc))
-
-            null_dist[:,perm] = np.asarray(accuracies)
-            #print(null_dist[:,perm])
-            print('Running permutation', perm,'/', num_permutations, '| Max accuracy for perm (across all ROIs):', np.max(null_dist[:,perm]))
-
-        np.savetxt(resultdir + 'CrossSubjectPerformanceDecoding/CrossSubject' + strlabel + 'PerformanceDecoding_NullDistribution.csv',null_dist)
 
 if __name__ == '__main__':
     args = parser.parse_args()

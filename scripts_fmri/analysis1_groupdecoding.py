@@ -41,7 +41,7 @@ parser.add_argument('--nproc', type=int, default=10, help="num parallel processe
 parser.add_argument('--kfold',type=int, default=10, help="number of CV folds (DEFAULT: 10)")
 parser.add_argument('--normalize', action='store_true', help="Normalize features (DEFAULT: FALSE")
 parser.add_argument('--classifier',type=str, default='distance', help="decoding method DEFAULT: 'distance' [distance, svm, logistic]")
-parser.add_argument('--num_permutations', type=int, default=1000, help="Permuation -- shuffle training labels (DEFAULT: 1000 permutations")
+parser.add_argument('--permutation', action='store_true', help="Permuation -- shuffle training labels (DEFAULT: FALSE")
 
 
 
@@ -58,9 +58,7 @@ def run(args):
     kfold = args.kfold
     normalize = args.normalize
     classifier = args.classifier
-    num_permutations = args.num_permutations
-
-    permutation = True # this is the permutation script
+    permutation = args.permutation
 
     ##############################################################
     #### Set decoding parameters
@@ -317,36 +315,42 @@ def run(args):
         subj_labels2 = np.asarray(subj_labels2)
         task_labels2 = np.asarray(task_labels2)
 
-        null_dist = np.zeros((len(rois),num_permutations))
-        for perm in range(num_permutations):
-            inputs = []
-            for roi in rois:
-                roi_ind = np.where(glasser==roi)[0]
-                roi_data = data_mat2[:,roi_ind]
-                inputs.append((roi_data,subj_labels2,task_labels2,kfold,normalize,classifier,confusion,permutation,np.random.randint(10000000)))
+        inputs = []
+        for roi in rois:
+            roi_ind = np.where(glasser==roi)[0]
+            roi_data = data_mat2[:,roi_ind]
+            inputs.append((roi_data,subj_labels2,task_labels2,kfold,normalize,classifier,confusion,permutation,roi))
 
-            pool = mp.Pool(processes=nproc)
-            results = pool.starmap_async(tools.decodeGroup,inputs).get()
-            pool.close()
-            pool.join()
+        pool = mp.Pool(processes=nproc)
+        results = pool.starmap_async(tools.decodeGroup,inputs).get()
+        pool.close()
+        pool.join()
 
-            accuracies = []
-            confusion_mats = []
-            for result in results:
-                acc, confusion_mat = result[0], result[1]
-                accuracies.append(np.mean(acc))
+        accuracies = []
+        confusion_mats = []
+        for result in results:
+            acc, confusion_mat = result[0], result[1]
+            accuracies.append(acc)
+            confusion_mats.append(confusion_mat)
 
-            null_dist[:,perm] = np.asarray(accuracies)
-            #print(null_dist[:,perm])
-            print('Running permutation', perm,'/', num_permutations, '| Max accuracy for perm (across all ROIs):', np.max(null_dist[:,perm]))
+        #### Save accuracy data to pandas csv    
+        tmp = {}
+        tmp['ROI'] = []
+        tmp['DecodingAccuracy'] = []
+        i = 0
+        for roi in rois:
+            tmp['DecodingAccuracy'].extend(accuracies[i])
+            tmp['ROI'].extend(np.repeat(roi,len(accuracies[i])))
+            i += 1
 
-        np.savetxt(resultdir + 'CrossSubjectNoveltyDecoding/CrossSubject' + strlabel + 'NoveltyDecoding_NullDistribution.csv',null_dist)
+        tmp = pd.DataFrame(data=tmp)
+        tmp.to_csv(resultdir + 'CrossSubjectNoveltyDecoding/CrossSubject' + strlabel + 'NoveltyDecoding_allROIs.csv')
 
 
     ######################################
     #### Negations decoding
     if negations:
-        print('Running Negations decoding...')
+        print('Running Novelty decoding...')
 
         # pull out labels of interest
         rule_labels = df.LogicRules.values
@@ -381,30 +385,36 @@ def run(args):
         task_labels2 = np.asarray(task_labels2)
     
 
-        null_dist = np.zeros((len(rois),num_permutations))
-        for perm in range(num_permutations):
-            inputs = []
-            for roi in rois:
-                roi_ind = np.where(glasser==roi)[0]
-                roi_data = data_mat2[:,roi_ind]
-                inputs.append((roi_data,subj_labels2,task_labels2,kfold,normalize,classifier,confusion,permutation,np.random.randint(10000000)))
+        inputs = []
+        for roi in rois:
+            roi_ind = np.where(glasser==roi)[0]
+            roi_data = data_mat2[:,roi_ind]
+            inputs.append((roi_data,subj_labels2,task_labels2,kfold,normalize,classifier,confusion,permutation,roi))
 
-            pool = mp.Pool(processes=nproc)
-            results = pool.starmap_async(tools.decodeGroup,inputs).get()
-            pool.close()
-            pool.join()
+        pool = mp.Pool(processes=nproc)
+        results = pool.starmap_async(tools.decodeGroup,inputs).get()
+        pool.close()
+        pool.join()
 
-            accuracies = []
-            confusion_mats = []
-            for result in results:
-                acc, confusion_mat = result[0], result[1]
-                accuracies.append(np.mean(acc))
+        accuracies = []
+        confusion_mats = []
+        for result in results:
+            acc, confusion_mat = result[0], result[1]
+            accuracies.append(acc)
+            confusion_mats.append(confusion_mat)
 
-            null_dist[:,perm] = np.asarray(accuracies)
-            #print(null_dist[:,perm])
-            print('Running permutation', perm,'/', num_permutations, '| Max accuracy for perm (across all ROIs):', np.max(null_dist[:,perm]))
+        #### Save accuracy data to pandas csv    
+        tmp = {}
+        tmp['ROI'] = []
+        tmp['DecodingAccuracy'] = []
+        i = 0
+        for roi in rois:
+            tmp['DecodingAccuracy'].extend(accuracies[i])
+            tmp['ROI'].extend(np.repeat(roi,len(accuracies[i])))
+            i += 1
 
-        np.savetxt(resultdir + 'CrossSubjectLogicalNegationDecoding/CrossSubject' + strlabel + 'LogicalNegationDecoding_NullDistribution.csv',null_dist)
+        tmp = pd.DataFrame(data=tmp)
+        tmp.to_csv(resultdir + 'CrossSubjectLogicalNegationDecoding/CrossSubject' + strlabel + 'LogicalNegationDecoding_allROIs.csv')
 
 
     ######################################
@@ -437,30 +447,36 @@ def run(args):
         task_labels2 = np.asarray(task_labels2)
     
 
-        null_dist = np.zeros((len(rois),num_permutations))
-        for perm in range(num_permutations):
-            inputs = []
-            for roi in rois:
-                roi_ind = np.where(glasser==roi)[0]
-                roi_data = data_mat2[:,roi_ind]
-                inputs.append((roi_data,subj_labels2,task_labels2,kfold,normalize,classifier,confusion,permutation,np.random.randint(10000000)))
+        inputs = []
+        for roi in rois:
+            roi_ind = np.where(glasser==roi)[0]
+            roi_data = data_mat2[:,roi_ind]
+            inputs.append((roi_data,subj_labels2,task_labels2,kfold,normalize,classifier,confusion,permutation,roi))
 
-            pool = mp.Pool(processes=nproc)
-            results = pool.starmap_async(tools.decodeGroup,inputs).get()
-            pool.close()
-            pool.join()
+        pool = mp.Pool(processes=nproc)
+        results = pool.starmap_async(tools.decodeGroup,inputs).get()
+        pool.close()
+        pool.join()
 
-            accuracies = []
-            confusion_mats = []
-            for result in results:
-                acc, confusion_mat = result[0], result[1]
-                accuracies.append(np.mean(acc))
+        accuracies = []
+        confusion_mats = []
+        for result in results:
+            acc, confusion_mat = result[0], result[1]
+            accuracies.append(acc)
+            confusion_mats.append(confusion_mat)
 
-            null_dist[:,perm] = np.asarray(accuracies)
-            #print(null_dist[:,perm])
-            print('Running permutation', perm,'/', num_permutations, '| Max accuracy for perm (across all ROIs):', np.max(null_dist[:,perm]))
+        #### Save accuracy data to pandas csv    
+        tmp = {}
+        tmp['ROI'] = []
+        tmp['DecodingAccuracy'] = []
+        i = 0
+        for roi in rois:
+            tmp['DecodingAccuracy'].extend(accuracies[i])
+            tmp['ROI'].extend(np.repeat(roi,len(accuracies[i])))
+            i += 1
 
-        np.savetxt(resultdir + 'CrossSubjectPerformanceDecoding/CrossSubject' + strlabel + 'PerformanceDecoding_NullDistribution.csv',null_dist)
+        tmp = pd.DataFrame(data=tmp)
+        tmp.to_csv(resultdir + 'CrossSubjectPerformanceDecoding/CrossSubject' + strlabel + 'PerformanceDecoding_allROIs.csv')
 
 if __name__ == '__main__':
     args = parser.parse_args()

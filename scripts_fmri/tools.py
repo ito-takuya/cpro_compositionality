@@ -52,6 +52,7 @@ def decodeGroup(data, subj_labels, task_labels,
         y_train, y_test = task_labels[train_index], task_labels[test_index]
 
         if permutation:
+            np.random.seed(roi)
             np.random.shuffle(y_train)
 
         if normalize:
@@ -71,7 +72,7 @@ def decodeGroup(data, subj_labels, task_labels,
 
         accuracies[test_index] = acc
 
-    if roi is not None:
+    if roi is not None and not permutation:
         print('Decoding ROI', roi, '| Average accuracy:', np.mean(accuracies))
 
     if confusion:
