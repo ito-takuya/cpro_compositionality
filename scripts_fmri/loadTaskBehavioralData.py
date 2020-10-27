@@ -21,14 +21,18 @@ def loadExperimentalData(subj):
     edat = pd.read_csv(edat_dir + subj + '_fMRI_CPRO.txt', delimiter='\t')
     
     #### Create miniblock array
+    triallabels = []
     mbs = []
     mb = 1
     for i in range(n_miniblocks):
         mbs.extend(np.repeat(mb,3))
+        triallabels.extend(['Trial1','Trial2','Trial3'])
         mb += 1
 
 
     df['Miniblock'] = mbs
+    df['TrialLabels'] = triallabels
+    df['Subject'] = np.repeat(subj,len(mbs))
     # Motor behavior
     df['MotorResponses'] = edat['ProbeStim1.RESP'][-n_trials:].values
     # Task rules
