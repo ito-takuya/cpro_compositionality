@@ -220,7 +220,7 @@ def behaviorOfTaskSimilarity(subjNums, firstOnly=False, behavior='Accuracy'):
 
     return  df_acc
 
-def behaviorAcrossRuleInstances(subjNums, behavior='Accuracy'):
+def behaviorAcrossRuleInstances(subjNums, behavior='Accuracy',novelOnly=False):
     """
     Returns a dataframe with the behavioral performance of trials based on task similarity
     Conditions: Practiced tasks, tasks with 2-rules that are similar, tasks with 3-rules that are similar
@@ -252,11 +252,18 @@ def behaviorAcrossRuleInstances(subjNums, behavior='Accuracy'):
         df.Sensory.values[:9] = np.nan
         df.Motor.values[:9] = np.nan
 
+        prac_ind = np.where(df.Novelty.values=='Prac')[0]
+        prac_tasks = np.unique(df.TaskNum.values[prac_ind])
+
         firstblock_ind = []
         secondblock_ind = []
         for i in np.unique(df.TaskNum.values[9:]):
             ind = np.where(df.TaskNum.values==i)[0]
-            firstblock_ind.extend(ind[:3]) # novel tasks have 2 blocks 3 trials each
+            if novelOnly:
+                if i not in prac_tasks: # Ensure this is a novel task only
+                    firstblock_ind.extend(ind[:3]) # novel tasks have 2 blocks 3 trials each
+            else:
+                firstblock_ind.extend(ind[:3]) # novel tasks have 2 blocks 3 trials each
             secondblock_ind.extend(ind[3:]) 
 
 
@@ -267,21 +274,21 @@ def behaviorAcrossRuleInstances(subjNums, behavior='Accuracy'):
             i = 0
             while i < len(inds):
                 ind = inds[np.arange(i,i+3)] # group trials associated with a miniblock together (3 trials/miniblock)
-                if behavior=='Accuracy':
-                    df_acc[behavior].append(np.mean(df[behavior].values[ind]=='Correct'))
-                if behavior=='RT':
-                    df_acc[behavior].append(np.nanmean(df[behavior].values[ind]))
-                df_acc['Rule'].append(rule)
-                df_acc['Subject'].append(subj)
-                df_acc['Condition'].append(df.Novelty.values[ind[0]])
                 if ind[0] in firstblock_ind:
+                    if behavior=='Accuracy':
+                        df_acc[behavior].append(np.mean(df[behavior].values[ind]=='Correct'))
+                    if behavior=='RT':
+                        df_acc[behavior].append(np.nanmean(df[behavior].values[ind]))
+                    df_acc['Rule'].append(rule)
+                    df_acc['Subject'].append(subj)
+                    df_acc['Condition'].append(df.Novelty.values[ind[0]])
                     df_acc['Block'].append(1)
                     df_acc['RuleInstance'].append(instance)
-                if ind[0] in secondblock_ind:
-                    df_acc['Block'].append(2)
-                    df_acc['RuleInstance'].append(instance)
+                    instance+=1
+                #if ind[0] in secondblock_ind:
+                #    df_acc['Block'].append(2)
+                #    df_acc['RuleInstance'].append(instance)
                 i += 3
-                instance+=1
 
         for rule in sen_rules:
             inds = np.where(df.Sensory.values==rule)[0]
@@ -290,21 +297,21 @@ def behaviorAcrossRuleInstances(subjNums, behavior='Accuracy'):
             i = 0
             while i < len(inds):
                 ind = inds[np.arange(i,i+3)] # group trials associated with a miniblock together (3 trials/miniblock)
-                if behavior=='Accuracy':
-                    df_acc[behavior].append(np.mean(df[behavior].values[ind]=='Correct'))
-                if behavior=='RT':
-                    df_acc[behavior].append(np.nanmean(df[behavior].values[ind]))
-                df_acc['Rule'].append(rule)
-                df_acc['Subject'].append(subj)
-                df_acc['Condition'].append(df.Novelty.values[ind[0]])
                 if ind[0] in firstblock_ind:
+                    if behavior=='Accuracy':
+                        df_acc[behavior].append(np.mean(df[behavior].values[ind]=='Correct'))
+                    if behavior=='RT':
+                        df_acc[behavior].append(np.nanmean(df[behavior].values[ind]))
+                    df_acc['Rule'].append(rule)
+                    df_acc['Subject'].append(subj)
+                    df_acc['Condition'].append(df.Novelty.values[ind[0]])
                     df_acc['Block'].append(1)
                     df_acc['RuleInstance'].append(instance)
-                if ind[0] in secondblock_ind:
-                    df_acc['Block'].append(2)
-                    df_acc['RuleInstance'].append(instance)
+                    instance+=1
+                #if ind[0] in secondblock_ind:
+                #    df_acc['Block'].append(2)
+                #    df_acc['RuleInstance'].append(instance)
                 i += 3
-                instance+=1
 
         for rule in mot_rules:
             inds = np.where(df.Motor.values==rule)[0]
@@ -313,25 +320,22 @@ def behaviorAcrossRuleInstances(subjNums, behavior='Accuracy'):
             i = 0
             while i < len(inds):
                 ind = inds[np.arange(i,i+3)] # group trials associated with a miniblock together (3 trials/miniblock)
-                if behavior=='Accuracy':
-                    df_acc[behavior].append(np.mean(df[behavior].values[ind]=='Correct'))
-                if behavior=='RT':
-                    df_acc[behavior].append(np.nanmean(df[behavior].values[ind]))
-                df_acc['Rule'].append(rule)
-                df_acc['Subject'].append(subj)
-                df_acc['Condition'].append(df.Novelty.values[ind[0]])
                 if ind[0] in firstblock_ind:
+                    if behavior=='Accuracy':
+                        df_acc[behavior].append(np.mean(df[behavior].values[ind]=='Correct'))
+                    if behavior=='RT':
+                        df_acc[behavior].append(np.nanmean(df[behavior].values[ind]))
+                    df_acc['Rule'].append(rule)
+                    df_acc['Subject'].append(subj)
+                    df_acc['Condition'].append(df.Novelty.values[ind[0]])
                     df_acc['Block'].append(1)
                     df_acc['RuleInstance'].append(instance)
-                if ind[0] in secondblock_ind:
-                    df_acc['Block'].append(2)
-                    df_acc['RuleInstance'].append(instance)
+                    instance+=1
+                #if ind[0] in secondblock_ind:
+                #    df_acc['Block'].append(2)
+                #    df_acc['RuleInstance'].append(instance)
                 i += 3
-                instance+=1
 
-    for key in df_acc:
-        print(key, len(df_acc[key]))
-    print(np.sum(np.asarray(df_acc['Block'])==1),np.sum(np.asarray(df_acc['Block'])==2))
     df_acc = pd.DataFrame(df_acc)
 
     return  df_acc
