@@ -157,15 +157,19 @@ def parallelismScore(data,labels,labels2,labels3,shuffle=False):
     labels2 - 1d array/list of secondary labels from which to maximize similarity/matches to build cosine similarities
     labels3 - 1d array/list of tertiary labels from which to maximize similarity/matches to build cosine similarities
     """
+    labels = np.asarray(labels)
+    labels2 = np.asarray(labels2)
+    labels3 = np.asarray(labels3)
+    classes = np.unique(labels) # return the unique class labels
 
-    if shuffle:
+    if shuffle!=False:
+        np.random.seed(shuffle)
         indices = np.arange(len(labels))
         np.random.shuffle(indices)
         labels = labels[indices]
         labels2 = labels2[indices]
         labels3 = labels3[indices]
 
-    classes = np.unique(labels) # return the unique class labels
     ps_score = np.zeros((len(classes),len(classes))) # create matrix to indicate the ps scores for each pair of conditions
     i = 0
     for cond1 in classes: # first condition
@@ -198,6 +202,7 @@ def parallelismScore(data,labels,labels2,labels3,shuffle=False):
                 vec2 = data[ind2,:]
                 diff_vec.append(vec1-vec2)
 #                print("Matching: (", labels[ind1], labels2[ind1], labels3[ind1], ') \tX\t (', labels[ind2], labels2[ind2], labels3[ind2],')')
+
 
             diff_vec = np.asarray(diff_vec) 
             diff_vec = diff_vec.T / np.linalg.norm(diff_vec,axis=1)

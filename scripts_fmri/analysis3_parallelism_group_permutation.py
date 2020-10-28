@@ -34,7 +34,6 @@ parser.add_argument('--logic', action='store_true', help="Run Logic rule decodin
 parser.add_argument('--sensory', action='store_true', help="Run sensory rule decoding")
 parser.add_argument('--motor', action='store_true', help="Run motor rule decoding")
 parser.add_argument('--nproc', type=int, default=10, help="num parallel processes to run (DEFAULT: 10)")
-parser.add_argument('--permutation', action='store_true', help="Permuation -- shuffle training labels (DEFAULT: FALSE")
 
 
 
@@ -44,8 +43,9 @@ def run(args):
     sensory = args.sensory
     motor = args.motor
     nproc = args.nproc
-    permutation = args.permutation
     import loadTaskBehavioralData as task
+    permutation = False
+    npermutations = 1000
 
     ##############################################################
     #### Set decoding parameters
@@ -91,6 +91,15 @@ def run(args):
 
     del fmri
 
+    avg_data = []
+    for subj in subjNums:
+        avg_data.append(data_mat[subj])
+    avg_data = np.asarray(avg_data)
+    avg_data = np.mean(avg_data,axis=0)
+    logic_labels = logic_labels[subj] # All subjects have the same ordering
+    sensory_labels = sensory_labels[subj] # All subjects have the same ordering
+    motor_labels = motor_labels[subj] # All subjects have the same ordering
+
     #### Load in behavioral data for all subjects
     df_all = tools.loadGroupBehavioralData(subjNums)
     # Make sure to only have one sample per task (rather than for each trial, since we're only decoding miniblocks)
@@ -99,69 +108,88 @@ def run(args):
     ######################################
     #### Logic parallelism calculation
     if logic:
-        print('Running Logic Rule PS calculation...')
-        ps_score = np.zeros((len(rois),len(subjNums)))
+        ps_score = np.zeros((len(rois),npermutations))
         roicount = 0
         for roi in rois:
+            print('Running Logic Rule PS permutation analysis on ROI', roi)
             roi_ind = np.where(glasser==roi)[0]
+            mat = avg_data[roi_ind,:].T
             inputs = []
-            for subj in subjNums:
-                inputs.append((mat,logic_labels[subj],sensory_labels[subj],motor_labels[subj],permutation))
-            subjcount = 0
-            for subj in subjNums:
-                mat = data_mat[subj][roi_ind,:].T
-                ps, classes = tools.parallelismScore(mat,logic_labels[subj],sensory_labels[subj],motor_labels[subj],shuffle=permutation)
-                ps_score[roicount,subjcount] = np.nanmean(ps)
-                subjcount += 1
+            for i in range(npermutations):
+                inputs.append((mat,logic_labels,sensory_labels,motor_labels,np.random.randint(10000000))) # use random seed
 
-            print('Avg PS for ROI', roi, '=', np.mean(ps_score[roicount,:]))
+            pool = mp.Pool(processes=nproc)
+            results = pool.starmap_async(tools.parallelismScore,inputs).get()
+            pool.close()
+            pool.join()
+
+            i = 0
+            for result in results:
+                ps, classes = result[0], result[1]
+                ps_score[roicount,i] = np.nanmean(ps)
+                i += 1
+            del results, inputs
 
             roicount += 1
 
-        np.savetxt(resultdir + 'ParallelismScore_LogicRules.csv',ps_score)
-            
+        np.savetxt(resultdir + 'ParallelismScore_LogicRules_GroupAverage_NullDistribution.csv',ps_score)
 
-    ######################################
-    #### Sensory rule PS
+    #### Sensory parallelism calculation
     if sensory:
-        print('Running Sensory Rule PS calculation...')
-        ps_score = np.zeros((len(rois),len(subjNums)))
+        ps_score = np.zeros((len(rois),npermutations))
         roicount = 0
         for roi in rois:
+            print('Running Sensory Rule PS permutation analysis on ROI', roi)
             roi_ind = np.where(glasser==roi)[0]
-            subjcount = 0
-            for subj in subjNums:
-                mat = data_mat[subj][roi_ind,:].T
-                ps, classes = tools.parallelismScore(mat,sensory_labels[subj],logic_labels[subj],motor_labels[subj],shuffle=permutation)
-                ps_score[roicount,subjcount] = np.nanmean(ps)
-                subjcount += 1
+            mat = avg_data[roi_ind,:].T
+            inputs = []
+            for i in range(npermutations):
+                inputs.append((mat,sensory_labels,logic_labels,motor_labels,np.random.randint(10000000))) # use random seed
 
-            print('Avg PS for ROI', roi, '=', np.mean(ps_score[roicount,:]))
+            pool = mp.Pool(processes=nproc)
+            results = pool.starmap_async(tools.parallelismScore,inputs).get()
+            pool.close()
+            pool.join()
+
+            i = 0
+            for result in results:
+                ps, classes = result[0], result[1]
+                ps_score[roicount,i] = np.nanmean(ps)
+                i += 1
+            del results, inputs
 
             roicount += 1
 
-        np.savetxt(resultdir + 'ParallelismScore_SensoryRules.csv',ps_score)
+        np.savetxt(resultdir + 'ParallelismScore_SensoryRules_GroupAverage_NullDistribution.csv',ps_score)
 
-    ######################################
-    #### Motor rule PS
+    #### Motor parallelism calculation
     if motor:
-        print('Running Motor Rule PS calculation...')
-        ps_score = np.zeros((len(rois),len(subjNums)))
+        ps_score = np.zeros((len(rois),npermutations))
         roicount = 0
         for roi in rois:
+            print('Running Motor Rule PS permutation analysis on ROI', roi)
             roi_ind = np.where(glasser==roi)[0]
-            subjcount = 0
-            for subj in subjNums:
-                mat = data_mat[subj][roi_ind,:].T
-                ps, classes = tools.parallelismScore(mat,motor_labels[subj],sensory_labels[subj],logic_labels[subj],shuffle=permutation)
-                ps_score[roicount,subjcount] = np.nanmean(ps)
-                subjcount += 1
+            mat = avg_data[roi_ind,:].T
+            inputs = []
+            for i in range(npermutations):
+                inputs.append((mat,motor_labels,sensory_labels,logic_labels,np.random.randint(10000000))) # use random seed
 
-            print('Avg PS for ROI', roi, '=', np.mean(ps_score[roicount,:]))
+            pool = mp.Pool(processes=nproc)
+            results = pool.starmap_async(tools.parallelismScore,inputs).get()
+            pool.close()
+            pool.join()
+
+            i = 0
+            for result in results:
+                ps, classes = result[0], result[1]
+                ps_score[roicount,i] = np.nanmean(ps)
+                i += 1
+            del results, inputs
 
             roicount += 1
 
-        np.savetxt(resultdir + 'ParallelismScore_MotorRules.csv',ps_score)
+        np.savetxt(resultdir + 'ParallelismScore_MotorRules_GroupAverage_NullDistribution.csv',ps_score)
+
 
 
 if __name__ == '__main__':

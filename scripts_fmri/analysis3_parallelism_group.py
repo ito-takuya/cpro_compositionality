@@ -34,7 +34,6 @@ parser.add_argument('--logic', action='store_true', help="Run Logic rule decodin
 parser.add_argument('--sensory', action='store_true', help="Run sensory rule decoding")
 parser.add_argument('--motor', action='store_true', help="Run motor rule decoding")
 parser.add_argument('--nproc', type=int, default=10, help="num parallel processes to run (DEFAULT: 10)")
-parser.add_argument('--permutation', action='store_true', help="Permuation -- shuffle training labels (DEFAULT: FALSE")
 
 
 
@@ -44,8 +43,8 @@ def run(args):
     sensory = args.sensory
     motor = args.motor
     nproc = args.nproc
-    permutation = args.permutation
     import loadTaskBehavioralData as task
+    permutation = False
 
     ##############################################################
     #### Set decoding parameters
@@ -91,6 +90,15 @@ def run(args):
 
     del fmri
 
+    avg_data = []
+    for subj in subjNums:
+        avg_data.append(data_mat[subj])
+    avg_data = np.asarray(avg_data)
+    avg_data = np.mean(avg_data,axis=0)
+    logic_labels = logic_labels[subj] # All subjects have the same ordering
+    sensory_labels = sensory_labels[subj] # All subjects have the same ordering
+    motor_labels = motor_labels[subj] # All subjects have the same ordering
+
     #### Load in behavioral data for all subjects
     df_all = tools.loadGroupBehavioralData(subjNums)
     # Make sure to only have one sample per task (rather than for each trial, since we're only decoding miniblocks)
@@ -100,68 +108,55 @@ def run(args):
     #### Logic parallelism calculation
     if logic:
         print('Running Logic Rule PS calculation...')
-        ps_score = np.zeros((len(rois),len(subjNums)))
+        ps_score = np.zeros((len(rois),1))
         roicount = 0
         for roi in rois:
             roi_ind = np.where(glasser==roi)[0]
-            inputs = []
-            for subj in subjNums:
-                inputs.append((mat,logic_labels[subj],sensory_labels[subj],motor_labels[subj],permutation))
-            subjcount = 0
-            for subj in subjNums:
-                mat = data_mat[subj][roi_ind,:].T
-                ps, classes = tools.parallelismScore(mat,logic_labels[subj],sensory_labels[subj],motor_labels[subj],shuffle=permutation)
-                ps_score[roicount,subjcount] = np.nanmean(ps)
-                subjcount += 1
+            mat = avg_data[roi_ind,:].T
+            ps, classes = tools.parallelismScore(mat,logic_labels,sensory_labels,motor_labels,shuffle=permutation)
+            ps_score[roicount] = np.nanmean(ps)
 
-            print('Avg PS for ROI', roi, '=', np.mean(ps_score[roicount,:]))
+            print('PS for ROI', roi, '=', np.mean(ps_score[roicount]))
 
             roicount += 1
 
-        np.savetxt(resultdir + 'ParallelismScore_LogicRules.csv',ps_score)
-            
+        np.savetxt(resultdir + 'ParallelismScore_LogicRules_GroupAverage.csv',ps_score)
 
     ######################################
-    #### Sensory rule PS
+    #### Sensory parallelism calculation
     if sensory:
         print('Running Sensory Rule PS calculation...')
-        ps_score = np.zeros((len(rois),len(subjNums)))
+        ps_score = np.zeros((len(rois),1))
         roicount = 0
         for roi in rois:
             roi_ind = np.where(glasser==roi)[0]
-            subjcount = 0
-            for subj in subjNums:
-                mat = data_mat[subj][roi_ind,:].T
-                ps, classes = tools.parallelismScore(mat,sensory_labels[subj],logic_labels[subj],motor_labels[subj],shuffle=permutation)
-                ps_score[roicount,subjcount] = np.nanmean(ps)
-                subjcount += 1
+            mat = avg_data[roi_ind,:].T
+            ps, classes = tools.parallelismScore(mat,sensory_labels,logic_labels,motor_labels,shuffle=permutation)
+            ps_score[roicount] = np.nanmean(ps)
 
-            print('Avg PS for ROI', roi, '=', np.mean(ps_score[roicount,:]))
+            print('PS for ROI', roi, '=', np.mean(ps_score[roicount]))
 
             roicount += 1
 
-        np.savetxt(resultdir + 'ParallelismScore_SensoryRules.csv',ps_score)
+        np.savetxt(resultdir + 'ParallelismScore_SensoryRules_GroupAverage.csv',ps_score)
 
     ######################################
-    #### Motor rule PS
+    #### Motor parallelism calculation
     if motor:
         print('Running Motor Rule PS calculation...')
-        ps_score = np.zeros((len(rois),len(subjNums)))
+        ps_score = np.zeros((len(rois),1))
         roicount = 0
         for roi in rois:
             roi_ind = np.where(glasser==roi)[0]
-            subjcount = 0
-            for subj in subjNums:
-                mat = data_mat[subj][roi_ind,:].T
-                ps, classes = tools.parallelismScore(mat,motor_labels[subj],sensory_labels[subj],logic_labels[subj],shuffle=permutation)
-                ps_score[roicount,subjcount] = np.nanmean(ps)
-                subjcount += 1
+            mat = avg_data[roi_ind,:].T
+            ps, classes = tools.parallelismScore(mat,motor_labels,logic_labels,sensory_labels,shuffle=permutation)
+            ps_score[roicount] = np.nanmean(ps)
 
-            print('Avg PS for ROI', roi, '=', np.mean(ps_score[roicount,:]))
+            print('PS for ROI', roi, '=', np.mean(ps_score[roicount]))
 
             roicount += 1
 
-        np.savetxt(resultdir + 'ParallelismScore_MotorRules.csv',ps_score)
+        np.savetxt(resultdir + 'ParallelismScore_MotorRules_GroupAverage.csv',ps_score)
 
 
 if __name__ == '__main__':
