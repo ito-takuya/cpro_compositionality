@@ -48,7 +48,8 @@ def parallelismScore(data,labels,labels2,labels3,shuffle=False):
         
         j = 0
         for cond2 in classes: # second condition
-            if i == j or i<j: 
+            if i == j: 
+                j+=1
                 # skip if same conditions or if doing a symmetrical calculation - this is not informative (dot product is symmetrical)
                 continue 
             ind_cond2 = np.where(labels==cond2)[0] # return the indices for the second class
@@ -116,7 +117,8 @@ def parallelismScoreRandomPartitions(data,labels,labels2,labels3,shuffle=False):
         
         j = 0
         for cond2 in classes: # second condition
-            if i == j or i<j: 
+            if i == j: 
+                j+=1
                 # skip if same conditions or if doing a symmetrical calculation - this is not informative (dot product is symmetrical)
                 continue 
             ind_cond2 = np.where(labels==cond2)[0] # return the indices for the second class
