@@ -260,7 +260,7 @@ def create_taskcontext_inputsOnly(taskRuleSet,output_taskinfo=False):
 
         ## Create trial array
         # Find input code for this task set
-        input_matrix[rule_ind,tasknum] = taskRuleSet.Code[tasknum] 
+        input_matrix[tasknum,rule_ind] = taskRuleSet.Code[tasknum] 
             
     # Pad output with 2 additional units for pretraining tasks
     #tmp_zeros = np.zeros((2,output_matrix.shape[1],output_matrix.shape[2]))
