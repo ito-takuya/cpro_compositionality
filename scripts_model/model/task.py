@@ -219,6 +219,57 @@ def create_all_trials(taskRuleSet,output_taskinfo=False):
     else:
         return input_matrix, output_matrix 
 
+def create_taskcontext_inputsOnly(taskRuleSet,output_taskinfo=False):
+    """
+    Creates input vectors for only the set of tasks included
+    returns only the input matrix
+    """
+    stimuliSet = createSensoryInputs()
+
+    # Create 1d array to randomly sample indices from
+    stimIndices = np.arange(len(stimuliSet))
+    taskIndices = np.arange(len(taskRuleSet))
+
+    #randomTaskIndices = np.random.choice(taskIndices,len(taskIndices),replace=False)
+    #randomTaskIndices = np.random.choice(taskIndices,nTasks,replace=False)
+    #taskRuleSet2 = taskRuleSet.iloc[randomTaskIndices].copy(deep=True)
+    #taskRuleSet = taskRuleSet.reset_index(drop=True)
+    taskRuleSet = taskRuleSet.reset_index(drop=False)
+    #taskRuleSet = taskRuleSet2.copy(deep=True)
+
+    # Create taskinfo data frame to keep track of specific trial types
+    taskinfo = {}
+    taskinfo['Logic'] = []
+    taskinfo['Sensory'] = []
+    taskinfo['Motor'] = []
+
+    ntrials_total = len(stimuliSet) * len(taskRuleSet)
+    ####
+    # Construct trial dynamics
+    rule_ind = np.arange(11) # rules are the first 11 indices of input vector
+    stim_ind = np.arange(11,27) # stimuli are the last 16 indices of input vector
+    input_size = len(rule_ind) + len(stim_ind)
+    input_matrix = np.zeros((len(taskRuleSet),input_size))
+    for tasknum in range(len(taskRuleSet)):
+        
+
+        # Create full task design dataframe
+        taskinfo['Logic'].append(taskRuleSet.Logic[tasknum])
+        taskinfo['Sensory'].append(taskRuleSet.Sensory[tasknum])
+        taskinfo['Motor'].append(taskRuleSet.Motor[tasknum])
+
+        ## Create trial array
+        # Find input code for this task set
+        input_matrix[tasknum,rule_ind] = taskRuleSet.Code[tasknum] 
+            
+    # Pad output with 2 additional units for pretraining tasks
+    #tmp_zeros = np.zeros((2,output_matrix.shape[1],output_matrix.shape[2]))
+    #output_matrix = np.vstack((output_matrix,tmp_zeros))
+    if output_taskinfo:
+        return input_matrix, pd.DataFrame(taskinfo)
+    else:
+        return input_matrix 
+
 def createSensoryInputs(nStims=2):
     stimdata = {}
     # Stim 1 empty columns

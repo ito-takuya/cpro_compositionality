@@ -1,7 +1,7 @@
 #### Experiment 5
-# Same as experiment 3, but read out the PS score
 # for each simulation, incrementally train additional tasks (i.e., include more practiced tasks) and assess performance etc.
 # fix number of epochs of data trained on, rather than using an 'accuracy cut-off'
+# Calculate PS for each simulation
 
 import numpy as np
 import argparse
@@ -25,15 +25,17 @@ datadir = '../../data/'
 parser = argparse.ArgumentParser('./main.py', description='Run a set of simulations/models')
 parser.add_argument('--nsimulations', type=int, default=20, help='number of models/simulations to run')
 parser.add_argument('--pretraining', action='store_true', help="pretrain network on simple tasks to improve compositionality")
+parser.add_argument('--negation', action='store_true', help="use the negative/negation version of the sensorimotor pretraining task")
+parser.add_argument('--posneg', action='store_true', help="use BOTH positive & negative/negation version of the sensorimotor pretraining task")
 parser.add_argument('--nepochs', type=int, default=100, help='number of epochs to run on practiced data')
-parser.add_argument('--optimizer', type=str, default='adam', help='default optimizer to train on practiced tasks')
+parser.add_argument('--optimizer', type=str, default='adam', help='default optimizer to train on practiced tasks (DEFAULT: adam')
 parser.add_argument('--practice', action='store_true', help="Train on practiced tasks")
 parser.add_argument('--cuda', action='store_true', help="use gpu/cuda")
-parser.add_argument('--save_model', type=str, default="ANN", help='string name to output models')
+parser.add_argument('--save_model', type=str, default="expt5", help='string name to output models (DEFAULT: ANN)')
 parser.add_argument('--verbose', action='store_true', help='verbose')
-parser.add_argument('--num_hidden', type=int, default=256, help="number of units in hidden layers")
-parser.add_argument('--num_layers', type=int, default=2, help="number of hidden layers")
-parser.add_argument('--learning_rate', type=float, default=0.001, help="learning rate for pretraining sessions (ADAM default)")
+parser.add_argument('--num_layers', type=int, default=2, help="number of hidden layers (DEFAULT: 2")
+parser.add_argument('--num_hidden', type=int, default=256, help="number of units in hidden layers (DEFAULT: 256")
+parser.add_argument('--learning_rate', type=float, default=0.001, help="learning rate for pretraining sessions (DEFAULT: 0.001)")
 parser.add_argument('--save', action='store_true', help="save or don't save model")
 parser.add_argument('--batchname', type=str, default='Experiment_FullTaskSet_11LogicInputs', help='string name for the experiment filename')
 parser.add_argument('--si_c', type=float, default=0.0, help='synaptic intelligence parameter (Zenke et al. 2017); default=0, meaning no synaptic intelligence implemented')
@@ -44,10 +46,12 @@ def run(args):
     nsimulations = args.nsimulations
     si_c = args.si_c
     practice = args.practice
+    negation = args.negation
+    posneg = args.posneg
     n_epochs = args.nepochs
     optimizer = args.optimizer
-    num_hidden = args.num_hidden
     num_layers = args.num_layers
+    num_hidden = args.num_hidden
     learning_rate = args.learning_rate
     save_model = args.save_model
     save = args.save
@@ -56,17 +60,26 @@ def run(args):
     cuda = args.cuda
     verbose = args.verbose
 
-
-
-
     outputdir = datadir + '/results/experiment5/'
 
     #save_model = save_model + '_' + batchname
     save_model = save_model + '_' + optimizer
-    save_model = save_model + '_' + str(int(n_epochs)) + 'epochs'
+    if practice:
+        save_model = save_model + '_' + str(int(n_epochs)) + 'epochs' # only include epochs if there's actually a practiced training session
+    else:
+        save_model = save_model + '_zeroshot' # only include epochs if there's actually a practiced training session
+
     save_model = save_model + '_' + str(int(num_layers)) + 'layers'
     if pretraining:
         save_model = save_model + '_pretraining'
+
+    if negation:
+        save_model = save_model + '_negation'
+
+    if posneg and not negation:
+        save_model = save_model + '_posneg'
+    if posneg and negation:
+        raise Exception("Can't have both positive and balanced (pos & neg) pretraining")
 
     if practice:
         save_model = save_model + '_practice'
@@ -121,7 +134,7 @@ def run(args):
         experiment.pretraining_input = pretraining_input
         experiment.pretraining_output = pretraining_output
 
-        sensorimotor_pretraining_input, sensorimotor_pretraining_output = task.create_sensorimotor_pretraining()
+        sensorimotor_pretraining_input, sensorimotor_pretraining_output = task.create_sensorimotor_pretraining(negation=negation)
         sensorimotor_pretraining_input = torch.from_numpy(sensorimotor_pretraining_input).float()
         sensorimotor_pretraining_output = torch.from_numpy(sensorimotor_pretraining_output).long()
         if cuda:
@@ -129,6 +142,18 @@ def run(args):
             sensorimotor_pretraining_output = sensorimotor_pretraining_output.cuda()
         experiment.sensorimotor_pretraining_input = sensorimotor_pretraining_input
         experiment.sensorimotor_pretraining_output = sensorimotor_pretraining_output
+
+        if posneg: #if both positive and negative balanced training is required, also load other sensorimotor task
+            sensorimotor_pretraining_input, sensorimotor_pretraining_output = task.create_sensorimotor_pretraining(negation=True)
+            sensorimotor_pretraining_input = torch.from_numpy(sensorimotor_pretraining_input).float()
+            sensorimotor_pretraining_output = torch.from_numpy(sensorimotor_pretraining_output).long()
+            if cuda:
+                sensorimotor_pretraining_input = sensorimotor_pretraining_input.cuda()
+                sensorimotor_pretraining_output = sensorimotor_pretraining_output.cuda()
+            experiment.sensorimotor_pretraining_input_neg = sensorimotor_pretraining_input
+            experiment.sensorimotor_pretraining_output_neg = sensorimotor_pretraining_output
+            # Pass this as avariable
+            experiment.posneg = posneg
 
         logicalsensory_pretraining_input, logicalsensory_pretraining_output = task.create_logicalsensory_pretraining()
         logicalsensory_pretraining_input = torch.from_numpy(logicalsensory_pretraining_input).float()
@@ -187,6 +212,9 @@ def run(args):
         df_sim['ContextDimensionality'] = []
         df_sim['ResponseDimensionality'] = []
         df_sim['NumPracticedTasks'] = []
+        df_sim['LogicPS'] = []
+        df_sim['SensoryPS'] = []
+        df_sim['MotorPS'] = []
 
         df_pertask = {}
         df_pertask['Accuracy'] = []
@@ -198,13 +226,16 @@ def run(args):
 
         n_practiced_tasks = len(experiment.practicedRuleSet)
         while n_practiced_tasks < len(experiment.taskRuleSet):
-        #while n_practiced_tasks < 5:
             modelname = save_model + str(sim)
+
+            #### Create conditional such that if practice==False, then don't train on any practiced tasks an exit immediately
+            if not practice:
+                n_practiced_tasks = 0
+
             #if verbose: print('** TRAINING ON', n_practiced_tasks, 'PRACTICED TASKS ** ... simulation', sim, ' |', modelname, '| cuda:', cuda)
             network, acc = trainANN.train(experiment,si_c=si_c,n_epochs=n_epochs,datadir=datadir,practice=practice,optimizer=optimizer,
                                           num_hidden=num_hidden,num_hidden_layers=num_layers,learning_rate=learning_rate,save=save,
-                                          save_model=outputdir+modelname+'_' + str(n_practiced_tasks) + 'practiceTasks.pt',
-                                          verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
+                                          save_model=outputdir+modelname+'.pt',verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
         
 
             network.eval()
@@ -265,8 +296,35 @@ def run(args):
             experiment.novel_inputs = experiment.novel_inputs[new_novel_ind,:,:]
             experiment.novel_targets = experiment.novel_targets[new_novel_ind,:]
 
+            # exit if practice==False
+            if not practice:
+                break
+
+
+            #### Compute PS scores for each rule dimension
+            # Logic PS
+            taskcontext_inputs = task.create_taskcontext_inputsOnly(experiment.taskRuleSet)
+            ps, classes = tools.parallelismScore(taskcontext_inputs,
+                                                 experiment.taskRuleSet.Logic.values,
+                                                 experiment.taskRuleSet.Sensory.values,
+                                                 experiment.taskRuleSet.Motor.values)
+            df_sim['LogicPS'].append(np.nanmean(ps))
+            # Sensory PS
+            ps, classes = tools.parallelismScore(taskcontext_inputs,
+                                                 experiment.taskRuleSet.Sensory.values,
+                                                 experiment.taskRuleSet.Logic.values,
+                                                 experiment.taskRuleSet.Motor.values)
+            df_sim['SensoryPS'].append(np.nanmean(ps))
+            # Motor PS
+            ps, classes = tools.parallelismScore(taskcontext_inputs,
+                                                 experiment.taskRuleSet.Motor.values,
+                                                 experiment.taskRuleSet.Logic.values,
+                                                 experiment.taskRuleSet.Sensory.values)
+            df_sim['MotorPS'].append(np.nanmean(ps))
+
             n_practiced_tasks += 1
-        
+
+
         df_sim = pd.DataFrame(df_sim) 
         df_sim.to_csv(outputdir + save_model + '_simData' + str(sim) + '.csv')
 
