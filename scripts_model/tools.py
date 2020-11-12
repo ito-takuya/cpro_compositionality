@@ -1,5 +1,6 @@
 import numpy as np
 import itertools
+import scipy.stats as stats
 
 def dimensionality(data):
     """
