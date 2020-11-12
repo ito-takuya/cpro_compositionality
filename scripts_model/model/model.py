@@ -84,19 +84,26 @@ class ANN(torch.nn.Module):
     def initHidden(self):
         return torch.randn(1, self.num_hidden)
 
-    def forward(self,inputs,noise=False,dropout=True):
+    def forward(self,inputs,noise=False,dropout=True,return1st=False):
         """
         Run a forward pass of a trial by input_elements matrix
         """
+        #Add noise to inputs
+        if noise:
+            inputs = inputs + torch.randn(inputs.shape, device=self.device, dtype=torch.float)/5 #(self.num_sensory_inputs+self.num_rule_inputs)
+        #inputs = inputs + torch.randn(inputs.shape, device=self.device, dtype=torch.float)/10 #(self.num_sensory_inputs+self.num_rule_inputs)
         # Map inputs into RNN space
         hidden = self.w_in(inputs) 
         if dropout: hidden = self.dropout_in(hidden)
         hidden = self.func(hidden)
+        hidden1st = hidden
         # Define rnn private noise/spont_act
-        if noise:
-            spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)/self.num_hidden
-            # Add private noise to each unit, and add to the input
-            hidden = hidden + spont_act
+        #if noise:
+        #    #spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)/10 #self.num_hidden
+        #    #spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)/5 #self.num_hidden
+#       #     spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)
+        #    # Add private noise to each unit, and add to the input
+        #    hidden = hidden + spont_act
 
         # Run RNN
         if self.num_hidden_layers>1:
@@ -113,7 +120,10 @@ class ANN(torch.nn.Module):
         #else:
         #    outputs = self.func_out(h2o) # Pass through nonlinearity
 
-        return outputs, hidden
+        if return1st:
+            return outputs, hidden, hidden1st
+        else:
+            return outputs, hidden
 
     def update_omega(self, W, epsilon):
         '''After completing training on a task, update the per-parameter regularization strength.

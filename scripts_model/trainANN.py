@@ -96,7 +96,8 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         else: 
             loss3 = 0
         count = 0
-        while loss1>0.01 or loss2>0.01 or loss3>0.01: 
+        lossmagnitude = 0.1
+        while loss1>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude: 
 
             ##### Motor rule pretraining
             #outputs, targets, loss = mod.train(network,
