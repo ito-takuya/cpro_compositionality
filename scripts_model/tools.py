@@ -145,9 +145,8 @@ def parallelismScoreRandomPartitions(data,labels,labels2,labels3,shuffle=False):
 
         i += 1
 
-    ps_score = ps_score + ps_score.T # make the matrix symmetric and fill out other half of the matrix
-
     return ps_score, classes
+
 
 
 

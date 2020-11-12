@@ -17,7 +17,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
           num_rule_inputs=11,num_hidden=128,num_hidden_layers=2,learning_rate=0.0001,
           acc_cutoff=95.0,n_epochs=None,optimizer='adam',
           save_model=None,verbose=True,save=True,
-          lossfunc='MSE',pretraining=False,device='cpu'):
+          lossfunc='MSE',pretraining=False,ps_optim=False,device='cpu'):
     """
     'online training model'
     num_hidden - # of hidden units
@@ -51,6 +51,21 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         network.update_omega(W,network.epsilon)
     else:
         W = None
+
+    # Optimize parallelism on task rule sets
+    if ps_optim:
+        
+        ##### Now train on simple logicalsensory rule pretraining
+        loss_ps = 1
+        # If there's the negative equivalent of the sensorimotor task, then make sure it trains loss
+        count = 0
+        while loss_ps>0.01: 
+
+            #### Logical sensory task pretraining
+            outputs, targets, loss1, psloss = mod.trainps(network,experiment,dropout=False)
+            if count%50==0: print('Loss of ps', psloss)
+            count += 1
+
 
     if pretraining:
         nbatches_pretraining = 200

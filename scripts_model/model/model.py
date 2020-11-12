@@ -209,6 +209,67 @@ def train(network, inputs, targets, si=True, dropout=False):
     
     return outputs, targets, loss.item()
 
+def trainps(network,experiment,dropout=False):
+    """Train network"""
+
+    network.train()
+    network.zero_grad()
+    network.optimizer.zero_grad()
+
+
+    outputs, hidden = network.forward(inputs,noise=True,dropout=dropout)
+
+    taskcontext_inputs = task.create_taskcontext_inputsOnly(experiment.taskRuleSet)
+    nsamples = taskcontext_inputs.size(0)
+    targets = torch.zeros(nsamples,num_motor_decision_outputs)
+
+    ps = parallelismScore(taskcontext_inputs,
+                          experiment.taskRuleSet.Logic.values,
+                          experiment.taskRuleSet.Sensory.values,
+                          experiment.taskRuleSet.Motor.values)
+    logicps = 1.0-ps # Want to maximize
+    # Sensory PS
+    ps = parallelismScore(taskcontext_inputs,
+                          experiment.taskRuleSet.Sensory.values,
+                          experiment.taskRuleSet.Logic.values,
+                          experiment.taskRuleSet.Motor.values)
+    sensoryps = 1.0-ps
+    # Motor PS
+    ps = parallelismScore(taskcontext_inputs,
+                          experiment.taskRuleSet.Motor.values,
+                          experiment.taskRuleSet.Logic.values,
+                          experiment.taskRuleSet.Sensory.values)
+    motorps = 1.0-ps
+    # Calculate loss
+    if isinstance(network.lossfunc,torch.nn.CrossEntropyLoss):
+       # tmp_target = []
+       # if targets.dim()==1:
+       #     tmp_target.append(torch.where(targets)[0])
+       # else:
+       #     for i in range(targets.shape[0]):
+       #         tmp_target.append(torch.where(targets[i,:])[0][0])
+        #tmp_target = np.asarray(tmp_target)
+        #tmp_target = torch.from_numpy(tmp_target)
+        #loss = network.lossfunc(outputs,tmp_target)
+        loss = network.lossfunc(outputs,targets)
+        loss = torch.mean(loss)
+    else:
+        loss = network.lossfunc(outputs,targets)
+        loss = torch.mean(loss)
+    if si is not None:
+        if network.si_c>0:
+            loss += (network.si_c * network.surrogate_loss()).detach()
+
+    loss += logicps + sensoryps + motorps
+    
+    # Backprop and update weights
+    loss.backward()
+    network.optimizer.step() # Update parameters using optimizer
+
+    ps_all = logicps + sensoryps + motorps
+    
+    return outputs, targets, loss.item(), ps_all
+
 def batch_training(network,train_inputs,train_outputs,acc_cutoff=99.5,si=True,
                      verbose=True):
 
@@ -342,3 +403,64 @@ def accuracyScore(network,outputs,targets):
     return acc
 
 
+def parallelismScore(data,labels,labels2,labels3,shuffle=False,cuda=False):
+    """
+    Computes parallelism score (PS) on either binary or multi-class problems 
+    Parallelism on multi-class problems is computed as the average cosine(angle) of all pairs of activation vectors
+    Partitions each class into two equal partitions, and then computes the cosine between all pairs of vectors 
+    Partitions are randomly sampled 1000 times (since the full permutation of combination pairs would be far too expensive
+
+    data - observations X features 2d matrix (features correspond to unit activations)
+    labels - 1d array/list of labels from which to build decoders (can be binary or multi-class)
+    labels2 - 1d array/list of secondary labels from which to maximize similarity/matches to build cosine similarities
+    labels3 - 1d array/list of tertiary labels from which to maximize similarity/matches to build cosine similarities
+    """
+
+    if shuffle:
+        indices = np.arange(len(labels))
+        np.random.shuffle(indices)
+        labels = labels[indices]
+        labels2 = labels2[indices]
+        labels3 = labels3[indices]
+
+    classes = np.unique(labels) # return the unique class labels
+    triu_ind = torch.triu_indices(len(classes),len(classes),offset=1)
+    ps_score = torch.empty(len(classes),len(classes)) # create matrix to indicate the ps scores for each pair of conditions
+    i = 0
+    for cond1 in classes: # first condition
+        ind_cond1 = np.where(labels==cond1)[0] # return the indices for the first class
+        
+        j = 0
+        for cond2 in classes: # second condition
+            if i == j: 
+                j+=1
+                # skip if same conditions or if doing a symmetrical calculation - this is not informative (dot product is symmetrical)
+                continue 
+            ind_cond2 = np.where(labels==cond2)[0] # return the indices for the second class
+
+            #### Now for each condition, iterate through random possible combinations
+            cosine_sim = []
+            for n in range(1000): # for each index in condition 1
+                np.random.shuffle(ind_cond1)
+                np.random.shuffle(ind_cond2)
+
+                ind1 = torch.from_numpy(ind_cond1)
+                ind2 = torch.from_numpy(ind_cond2)
+
+                vec1 = data[ind1,:]
+                vec2 = data[ind2,:]
+
+                diff_vec = vec1 - vec2
+                diff_vec = diff_vec.transpose_() / torch.linalg.norm(diff_vec,dim=1)
+                ps = torch.matmul(diff_vec.transpose_(),diff_vec)
+                cosine_sim.append(np.nanmean(ps[triu_ind]))
+
+
+            ps_score[i,j] = torch.max(cosine_sim).item() # compute average ps
+            j += 1
+
+        i += 1
+
+    ps_avg = toch.mean(ps_score).item()
+
+    return ps_avg
