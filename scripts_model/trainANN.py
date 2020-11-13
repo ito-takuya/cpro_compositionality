@@ -1,4 +1,5 @@
 import numpy as np
+import model.task as task
 np.set_printoptions(suppress=True)
 import os
 
@@ -17,7 +18,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
           num_rule_inputs=11,num_hidden=128,num_hidden_layers=2,learning_rate=0.0001,
           acc_cutoff=95.0,n_epochs=None,optimizer='adam',
           save_model=None,verbose=True,save=True,
-          lossfunc='MSE',pretraining=False,ps_optim=False,device='cpu'):
+          lossfunc='MSE',pretraining=False,ps_optim=None,device='cpu'):
     """
     'online training model'
     num_hidden - # of hidden units
@@ -53,18 +54,41 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         W = None
 
     # Optimize parallelism on task rule sets
-    if ps_optim:
+    if ps_optim is not None:
         
+        taskcontext_inputs = task.create_taskcontext_inputsOnly(experiment.taskRuleSet)
+        nsamples = taskcontext_inputs.shape[0]
+        targets_ps = torch.zeros(nsamples,network.num_motor_decision_outputs)
+
+        taskcontext_inputs = torch.from_numpy(taskcontext_inputs).float()
+        taskcontext_inputs = taskcontext_inputs.to(device)
+        targets_ps = targets_ps.float().to(device)
+
+        # Create object to pass
+        ps_object = type('', (), {})()
+        ps_object.match_logic_ind = mod.sortConditionsPS(experiment.taskRuleSet.Logic.values,
+                                                         experiment.taskRuleSet.Sensory.values,
+                                                         experiment.taskRuleSet.Motor.values) 
+        ps_object.match_sensory_ind = mod.sortConditionsPS(experiment.taskRuleSet.Sensory.values,
+                                                           experiment.taskRuleSet.Logic.values,
+                                                           experiment.taskRuleSet.Motor.values) 
+        ps_object.match_motor_ind = mod.sortConditionsPS(experiment.taskRuleSet.Motor.values,
+                                                         experiment.taskRuleSet.Logic.values,
+                                                         experiment.taskRuleSet.Sensory.values) 
+        ps_object.ps = ps_optim
+        ps_object.inputs_ps = taskcontext_inputs
         ##### Now train on simple logicalsensory rule pretraining
         loss_ps = 1
-        # If there's the negative equivalent of the sensorimotor task, then make sure it trains loss
+        ## If there's the negative equivalent of the sensorimotor task, then make sure it trains loss
         count = 0
         while loss_ps>0.01: 
 
             #### Logical sensory task pretraining
-            outputs, targets, loss1, psloss = mod.trainps(network,experiment,dropout=False)
-            if count%50==0: print('Loss of ps', psloss)
+            outputs, targets, loss1, loss_ps = mod.trainps(network,taskcontext_inputs,targets_ps,ps_object,dropout=False)
+            if count%1==0: print('Loss of ps', loss_ps)
             count += 1
+    else:
+        ps_object = None
 
 
     if pretraining:
@@ -189,7 +213,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
                     outputs, targets, loss = mod.train(network,
                                                        experiment.prac_inputs[t,:,:],
                                                        experiment.prac_targets[t,:],
-                                                       si=W,dropout=True)
+                                                       si=W,ps_optim=ps_object,dropout=True)
 
                     acc.append(mod.accuracyScore(network,outputs,targets)*100.0)
                 
@@ -203,7 +227,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
 
                 accuracy_prac = np.sum(np.asarray(acc)>acc_cutoff)
 
-            print('\tTraining on practiced tasks exits with:', np.mean(np.asarray(acc)),'% after', n_epochs, 'epochs')
+            print('\tTraining on practiced tasks exits with:', np.mean(np.asarray(acc)),'% after', n_epochs, 'epochs | PS Loss:', loss)
 
         else:
 
@@ -217,7 +241,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
                     outputs, targets, loss = mod.train(network,
                                                        experiment.prac_inputs[t,:,:],
                                                        experiment.prac_targets[t,:],
-                                                       si=W,dropout=True)
+                                                       si=W,ps_optim=ps_object,dropout=True)
 
                     acc.append(mod.accuracyScore(network,outputs,targets)*100.0)
                 
