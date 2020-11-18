@@ -181,7 +181,7 @@ def train(network, inputs, targets, si=True, ps_optim=None, dropout=False):
     network.optimizer.zero_grad()
 
 
-    outputs, hidden = network.forward(inputs,noise=True,dropout=dropout)
+    outputs, hidden = network.forward(inputs,noise=True,dropout=False)
 
     # Calculate loss
     if isinstance(network.lossfunc,torch.nn.CrossEntropyLoss):
@@ -199,41 +199,46 @@ def train(network, inputs, targets, si=True, ps_optim=None, dropout=False):
     else:
         loss = network.lossfunc(outputs,targets)
         loss = torch.mean(loss)
-    if si is not None:
-        if network.si_c>0:
-            loss += (network.si_c * network.surrogate_loss()).detach()
+    #if si is not None:
+    #    if network.si_c>0:
+    #        loss += (network.si_c * network.surrogate_loss()).detach()
 
-    ## PS regularization
+    ### PS regularization
     if ps_optim is not None:
-        ps_outputs, hidden = network.forward(ps_optim.inputs_ps,noise=False,dropout=dropout)
+        ps_outputs, hidden = network.forward(ps_optim.inputs_ps,noise=True,dropout=False)
         ps = calculatePS(hidden,ps_optim.match_logic_ind)
-        logicps = 1.0-ps # Want to maximize
+        logicps = ps # Want to maximize
         # Sensory PS
         ps = calculatePS(hidden,ps_optim.match_sensory_ind)
-        sensoryps = 1.0-ps
+        sensoryps = ps
         # Motor PS
         ps = calculatePS(hidden,ps_optim.match_motor_ind)
-        motorps = 1.0-ps
-        ps_reg = (logicps + sensoryps + motorps) * ps_optim.ps
-        msefunc = torch.nn.MSELoss()
-        ps_loss = msefunc(outputs,outputs+ps_reg) #hack
-        #for p in network.parameters():
-        #    if p.requires_grad:
-        #        ps_loss.append(ps_optim.ps * (logicps + sensoryps + motorps))
+        motorps = ps
+
+        #ps_loss = (1.0-logicps) + (1.0-motorps)
+        #ps_loss = sensoryps**2
+        ps_loss = sensoryps**2 + (1.0-logicps) + (1.0-motorps)
+
+        ps_reg = torch.tensor(0., requires_grad=True).to(network.device)
+        for name, param in network.named_parameters():
+            if 'weight' in name:
+                ps_reg += param.norm(2)*.1 + (ps_loss) * ps_optim.ps
+        loss += ps_reg
 
 
         #print('PS reg:', ps_reg)
         #print(loss)
         #print(ps_loss)
 
-        loss +=  ps_loss   
-
     # Backprop and update weights
     loss.backward()
     network.optimizer.step() # Update parameters using optimizer
     
-    #return outputs, targets, loss.item()
-    return outputs, targets, ps_reg 
+    if ps_optim is not None:
+        return outputs, targets, loss.item(), logicps, sensoryps, motorps
+    else:
+        return outputs, targets, loss.item()
+    #return outputs, targets, ps_reg 
 
 def trainps(network,inputs_ps,targets_ps,ps_optim,dropout=False):
     """Train network"""
@@ -243,28 +248,33 @@ def trainps(network,inputs_ps,targets_ps,ps_optim,dropout=False):
     network.optimizer.zero_grad()
 
 
-    ps_outputs, hidden = network.forward(ps_optim.inputs_ps,noise=False,dropout=dropout)
+    ps_outputs, hidden = network.forward(ps_optim.inputs_ps,noise=True,dropout=False)
     ps = calculatePS(hidden,ps_optim.match_logic_ind)
     logicps = 1.0-ps # Want to maximize
     # Sensory PS
     ps = calculatePS(hidden,ps_optim.match_sensory_ind)
-    sensoryps = 1.0-ps
+    sensoryps = np.abs(ps)
     # Motor PS
     ps = calculatePS(hidden,ps_optim.match_motor_ind)
     motorps = 1.0-ps
     ps_reg = (logicps + sensoryps + motorps) * ps_optim.ps
     msefunc = torch.nn.MSELoss()
-    loss = msefunc(ps_outputs,targets_ps)
-    ps_loss = msefunc(ps_outputs,ps_outputs+ps_reg) #hack
-    loss +=  ps_loss   
+    loss = msefunc(ps_outputs,ps_outputs)
+
+    #ps_loss = (1.0-logicps) + (1.0-motorps)
+    ps_loss = np.abs(sensoryps)
+
+    ps_reg = torch.tensor(0., requires_grad=True).to(network.device)
+    for name, param in network.named_parameters():
+        if 'weight' in name:
+            ps_reg += (param.norm(2) + ps_loss) * ps_optim.ps
+    loss += ps_reg
     
     # Backprop and update weights
     loss.backward()
     network.optimizer.step() # Update parameters using optimizer
 
-    ps_all = logicps + sensoryps + motorps
-    
-    return ps_outputs, targets_ps, loss.item(), ps_all
+    return ps_outputs, targets_ps, loss.item(), logicps, sensoryps, motorps
 
 def batch_training(network,train_inputs,train_outputs,acc_cutoff=99.5,si=True,
                      verbose=True):

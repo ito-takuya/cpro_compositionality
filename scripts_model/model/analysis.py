@@ -80,7 +80,7 @@ def rsa_context(network,batchfilename='../../data/results/model/Experiment_FullT
 
     input_matrix = torch.from_numpy(input_matrix).float().to(network.device)
     # Now run a forward pass for all activations
-    outputs, hidden = network.forward(input_matrix,noise=False)
+    outputs, hidden = network.forward(input_matrix,noise=True)
 
     ## Now plot RSM
     hidden = hidden.detach().cpu().numpy()
@@ -114,7 +114,7 @@ def rsa_behavior(network,tasks_input,tasks_output,measure='corr'):
     # Now run a forward pass for all activations
     responses_per_task = np.zeros((network.num_hidden,64,4)) # tasks by motor responses
     for t in range(tasks_output.shape[0]):
-        outputs, hidden = network.forward(tasks_input[t,:,:],noise=False)
+        outputs, hidden = network.forward(tasks_input[t,:,:],noise=True)
         responses = torch.unique(tasks_output[t,:])
         for resp in responses:
             resp = resp.item()

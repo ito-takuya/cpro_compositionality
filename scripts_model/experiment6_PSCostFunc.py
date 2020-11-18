@@ -12,7 +12,7 @@ import model.task as task
 import time
 import model.analysis as analysis
 from importlib import reload
-import trainANN as trainANN
+import trainANN_costPS as trainANN
 mod = reload(mod)
 task = reload(task)
 analysis = reload(analysis)
@@ -24,7 +24,7 @@ datadir = '../../data/'
 
 parser = argparse.ArgumentParser('./main.py', description='Run a set of simulations/models')
 parser.add_argument('--nsimulations', type=int, default=20, help='number of models/simulations to run')
-parser.add_argument('--ps', action='store_true', help="include regularization term to maximize PS in cost function")
+parser.add_argument('--ps', type=float, default=0.0, help="include regularization term to maximize PS in cost function")
 parser.add_argument('--pretraining', action='store_true', help="pretrain network on simple tasks to improve compositionality")
 parser.add_argument('--negation', action='store_true', help="use the negative/negation version of the sensorimotor pretraining task")
 parser.add_argument('--posneg', action='store_true', help="use BOTH positive & negative/negation version of the sensorimotor pretraining task")
@@ -32,7 +32,7 @@ parser.add_argument('--nepochs', type=int, default=100, help='number of epochs t
 parser.add_argument('--optimizer', type=str, default='adam', help='default optimizer to train on practiced tasks (DEFAULT: adam')
 parser.add_argument('--practice', action='store_true', help="Train on practiced tasks")
 parser.add_argument('--cuda', action='store_true', help="use gpu/cuda")
-parser.add_argument('--save_model', type=str, default="expt5", help='string name to output models (DEFAULT: ANN)')
+parser.add_argument('--save_model', type=str, default="expt6", help='string name to output models (DEFAULT: ANN)')
 parser.add_argument('--verbose', action='store_true', help='verbose')
 parser.add_argument('--num_layers', type=int, default=2, help="number of hidden layers (DEFAULT: 2")
 parser.add_argument('--num_hidden', type=int, default=256, help="number of units in hidden layers (DEFAULT: 256")
@@ -45,7 +45,10 @@ parser.add_argument('--si_c', type=float, default=0.0, help='synaptic intelligen
 def run(args):
     args 
     nsimulations = args.nsimulations
-    ps_optim = args.ps
+    if args.ps==0.0:
+        ps_optim = None
+    else:
+        ps_optim = args.ps
     si_c = args.si_c
     practice = args.practice
     negation = args.negation
@@ -72,8 +75,9 @@ def run(args):
         save_model = save_model + '_zeroshot' # only include epochs if there's actually a practiced training session
 
     save_model = save_model + '_' + str(int(num_layers)) + 'layers'
-    if pretraining:
-        save_model = save_model + '_optimizePS'
+    
+    if ps_optim is not None:
+        save_model = save_model + '_optimizePS' + str(ps_optim)
 
     if pretraining:
         save_model = save_model + '_pretraining'
@@ -230,59 +234,84 @@ def run(args):
         df_pertask['NumPracticedTasks'] = []
 
         n_practiced_tasks = len(experiment.practicedRuleSet)
-        #while n_practiced_tasks < len(experiment.taskRuleSet):
-        while n_practiced_tasks < 5:
-            modelname = save_model + str(sim)
+        while n_practiced_tasks < len(experiment.taskRuleSet):
+            if n_practiced_tasks not in [4]:
+                n_practiced_tasks += 1
+                continue
+            else:
+                modelname = save_model + str(sim)
 
-            #### Create conditional such that if practice==False, then don't train on any practiced tasks an exit immediately
-            if not practice:
-                n_practiced_tasks = 0
+                #### Create conditional such that if practice==False, then don't train on any practiced tasks an exit immediately
+                if not practice:
+                    n_practiced_tasks = 0
 
-            #if verbose: print('** TRAINING ON', n_practiced_tasks, 'PRACTICED TASKS ** ... simulation', sim, ' |', modelname, '| cuda:', cuda)
-            network, acc = trainANN.train(experiment,si_c=si_c,n_epochs=n_epochs,datadir=datadir,practice=practice,optimizer=optimizer,
-                                          num_hidden=num_hidden,num_hidden_layers=num_layers,learning_rate=learning_rate,save=save,
-                                          save_model=outputdir+modelname+'.pt',verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
-        
-
-            network.eval()
+                #if verbose: print('** TRAINING ON', n_practiced_tasks, 'PRACTICED TASKS ** ... simulation', sim, ' |', modelname, '| cuda:', cuda)
+                network, acc = trainANN.train(experiment,si_c=si_c,n_epochs=n_epochs,datadir=datadir,practice=practice,optimizer=optimizer,
+                                              num_hidden=num_hidden,num_hidden_layers=num_layers,learning_rate=learning_rate,save=save,
+                                              save_model=outputdir+modelname+'.pt',verbose=False,lossfunc='CrossEntropy',ps_optim=ps_optim, pretraining=pretraining,device=device)
             
-            #### Save accuracies by task
-            for i in range(len(experiment.practicedRuleSet)):
-                outputs, hidden = network.forward(experiment.prac_inputs[i,:,:],noise=False)
-                outputs[:,4:] = 0
-                acc = mod.accuracyScore(network,outputs,experiment.prac_targets[i,:])
-                df_pertask['Accuracy'].append(acc)
-                df_pertask['Condition'].append('Practiced')
-                df_pertask['Logic'].append(experiment.practicedRuleSet.Logic[i])
-                df_pertask['Sensory'].append(experiment.practicedRuleSet.Sensory[i])
-                df_pertask['Motor'].append(experiment.practicedRuleSet.Motor[i])
-                df_pertask['NumPracticedTasks'].append(n_practiced_tasks)
 
-            novel_acc = []
-            for i in range(len(experiment.novelRuleSet)):
-                outputs, hidden = network.forward(experiment.novel_inputs[i,:,:],noise=False)
-                outputs[:,4:] = 0
-                acc = mod.accuracyScore(network,outputs,experiment.novel_targets[i,:])
-                novel_acc.append(acc)
-                df_pertask['Accuracy'].append(acc)
-                df_pertask['Condition'].append('Novel')
-                df_pertask['Logic'].append(experiment.novelRuleSet.Logic[i])
-                df_pertask['Sensory'].append(experiment.novelRuleSet.Sensory[i])
-                df_pertask['Motor'].append(experiment.novelRuleSet.Motor[i])
-                df_pertask['NumPracticedTasks'].append(n_practiced_tasks)
-
+                network.eval()
                 
-            if verbose: 
-                print('Model:', modelname, '| Simulation', sim, ' | # of practiced tasks:', n_practiced_tasks, '| Acc on novel tasks:', np.mean(novel_acc))
+                #### Save accuracies by task
+                for i in range(len(experiment.practicedRuleSet)):
+                    outputs, hidden = network.forward(experiment.prac_inputs[i,:,:],noise=False)
+                    outputs[:,4:] = 0
+                    acc = mod.accuracyScore(network,outputs,experiment.prac_targets[i,:])
+                    df_pertask['Accuracy'].append(acc)
+                    df_pertask['Condition'].append('Practiced')
+                    df_pertask['Logic'].append(experiment.practicedRuleSet.Logic[i])
+                    df_pertask['Sensory'].append(experiment.practicedRuleSet.Sensory[i])
+                    df_pertask['Motor'].append(experiment.practicedRuleSet.Motor[i])
+                    df_pertask['NumPracticedTasks'].append(n_practiced_tasks)
 
-            # novel trial accuracy
-            df_sim['Accuracy'].append(np.mean(novel_acc))
-            df_sim['NumPracticedTasks'].append(n_practiced_tasks)
-            hidden, rsm_corr = analysis.rsa_context(network,batchfilename=batchfilename,measure='corr')
-            df_sim['ContextDimensionality'].append(tools.dimensionality(rsm_corr))
-            #### response dimensionality - requires the task input/output set
-            hidden, rsm_corr = analysis.rsa_behavior(network,full_inputs,full_targets,measure='corr')
-            df_sim['ResponseDimensionality'].append(tools.dimensionality(rsm_corr))
+                novel_acc = []
+                for i in range(len(experiment.novelRuleSet)):
+                    outputs, hidden = network.forward(experiment.novel_inputs[i,:,:],noise=False)
+                    outputs[:,4:] = 0
+                    acc = mod.accuracyScore(network,outputs,experiment.novel_targets[i,:])
+                    novel_acc.append(acc)
+                    df_pertask['Accuracy'].append(acc)
+                    df_pertask['Condition'].append('Novel')
+                    df_pertask['Logic'].append(experiment.novelRuleSet.Logic[i])
+                    df_pertask['Sensory'].append(experiment.novelRuleSet.Sensory[i])
+                    df_pertask['Motor'].append(experiment.novelRuleSet.Motor[i])
+                    df_pertask['NumPracticedTasks'].append(n_practiced_tasks)
+
+                    
+                if verbose: 
+                    print('Model:', modelname, '| Simulation', sim, ' | # of practiced tasks:', n_practiced_tasks, '| Acc on novel tasks:', np.mean(novel_acc))
+
+                # novel trial accuracy
+                df_sim['Accuracy'].append(np.mean(novel_acc))
+                df_sim['NumPracticedTasks'].append(n_practiced_tasks)
+                hidden, rsm_corr = analysis.rsa_context(network,batchfilename=batchfilename,measure='corr')
+                df_sim['ContextDimensionality'].append(tools.dimensionality(rsm_corr))
+                #### response dimensionality - requires the task input/output set
+                hidden, rsm_corr = analysis.rsa_behavior(network,full_inputs,full_targets,measure='corr')
+                df_sim['ResponseDimensionality'].append(tools.dimensionality(rsm_corr))
+
+
+                #### Compute PS scores for each rule dimension
+                # Logic PS
+                taskcontext_inputs = task.create_taskcontext_inputsOnly(experiment.taskRuleSet)
+                ps, classes = tools.parallelismScore(taskcontext_inputs,
+                                                     experiment.taskRuleSet.Logic.values,
+                                                     experiment.taskRuleSet.Sensory.values,
+                                                     experiment.taskRuleSet.Motor.values)
+                df_sim['LogicPS'].append(np.nanmean(ps))
+                # Sensory PS
+                ps, classes = tools.parallelismScore(taskcontext_inputs,
+                                                     experiment.taskRuleSet.Sensory.values,
+                                                     experiment.taskRuleSet.Logic.values,
+                                                     experiment.taskRuleSet.Motor.values)
+                df_sim['SensoryPS'].append(np.nanmean(ps))
+                # Motor PS
+                ps, classes = tools.parallelismScore(taskcontext_inputs,
+                                                     experiment.taskRuleSet.Motor.values,
+                                                     experiment.taskRuleSet.Logic.values,
+                                                     experiment.taskRuleSet.Sensory.values)
+                df_sim['MotorPS'].append(np.nanmean(ps))
 
             #### Update and transfer novel task to practiced tasks
             practicedRuleSet, novelRuleSet, nov2prac_ind = experiment.addPracticedTasks(n=1) # Add a random novel task to the practiced set
@@ -302,33 +331,14 @@ def run(args):
             experiment.novel_inputs = experiment.novel_inputs[new_novel_ind,:,:]
             experiment.novel_targets = experiment.novel_targets[new_novel_ind,:]
 
+            n_practiced_tasks += 1
+
             # exit if practice==False
             if not practice:
                 break
 
 
-            #### Compute PS scores for each rule dimension
-            # Logic PS
-            taskcontext_inputs = task.create_taskcontext_inputsOnly(experiment.taskRuleSet)
-            ps, classes = tools.parallelismScore(taskcontext_inputs,
-                                                 experiment.taskRuleSet.Logic.values,
-                                                 experiment.taskRuleSet.Sensory.values,
-                                                 experiment.taskRuleSet.Motor.values)
-            df_sim['LogicPS'].append(np.nanmean(ps))
-            # Sensory PS
-            ps, classes = tools.parallelismScore(taskcontext_inputs,
-                                                 experiment.taskRuleSet.Sensory.values,
-                                                 experiment.taskRuleSet.Logic.values,
-                                                 experiment.taskRuleSet.Motor.values)
-            df_sim['SensoryPS'].append(np.nanmean(ps))
-            # Motor PS
-            ps, classes = tools.parallelismScore(taskcontext_inputs,
-                                                 experiment.taskRuleSet.Motor.values,
-                                                 experiment.taskRuleSet.Logic.values,
-                                                 experiment.taskRuleSet.Sensory.values)
-            df_sim['MotorPS'].append(np.nanmean(ps))
 
-            n_practiced_tasks += 1
 
 
         df_sim = pd.DataFrame(df_sim) 
