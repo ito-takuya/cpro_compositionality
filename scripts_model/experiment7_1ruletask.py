@@ -25,7 +25,7 @@ datadir = '../../data/'
 parser = argparse.ArgumentParser('./main.py', description='Run a set of simulations/models')
 parser.add_argument('--nsimulations', type=int, default=20, help='number of models/simulations to run')
 parser.add_argument('--pretraining', action='store_true', help="pretrain network on 1 rule tasks")
-parser.add_argument('--nonegations', action='store_true', help="do not use negations of 1 rule tasks")
+parser.add_argument('--nonegation', action='store_true', help="do not use negations of 1 rule tasks")
 parser.add_argument('--nepochs', type=int, default=100, help='number of epochs to run on practiced data')
 parser.add_argument('--optimizer', type=str, default='adam', help='default optimizer to train on practiced tasks (DEFAULT: adam')
 parser.add_argument('--practice', action='store_true', help="Train on practiced tasks")
