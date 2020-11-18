@@ -30,7 +30,7 @@ parser.add_argument('--nepochs', type=int, default=100, help='number of epochs t
 parser.add_argument('--optimizer', type=str, default='adam', help='default optimizer to train on practiced tasks (DEFAULT: adam')
 parser.add_argument('--practice', action='store_true', help="Train on practiced tasks")
 parser.add_argument('--cuda', action='store_true', help="use gpu/cuda")
-parser.add_argument('--save_model', type=str, default="expt5", help='string name to output models (DEFAULT: ANN)')
+parser.add_argument('--save_model', type=str, default="expt7", help='string name to output models (DEFAULT: ANN)')
 parser.add_argument('--verbose', action='store_true', help='verbose')
 parser.add_argument('--num_layers', type=int, default=2, help="number of hidden layers (DEFAULT: 2")
 parser.add_argument('--num_hidden', type=int, default=256, help="number of units in hidden layers (DEFAULT: 256")
