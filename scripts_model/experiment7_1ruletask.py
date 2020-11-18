@@ -8,7 +8,7 @@ import argparse
 np.set_printoptions(suppress=True)
 import os
 import model.model as mod
-import model.task as task
+import model.task_1ruletasks as task
 import time
 import model.analysis as analysis
 from importlib import reload
@@ -24,9 +24,8 @@ datadir = '../../data/'
 
 parser = argparse.ArgumentParser('./main.py', description='Run a set of simulations/models')
 parser.add_argument('--nsimulations', type=int, default=20, help='number of models/simulations to run')
-parser.add_argument('--pretraining', action='store_true', help="pretrain network on simple tasks to improve compositionality")
-parser.add_argument('--negation', action='store_true', help="use the negative/negation version of the sensorimotor pretraining task")
-parser.add_argument('--posneg', action='store_true', help="use BOTH positive & negative/negation version of the sensorimotor pretraining task")
+parser.add_argument('--pretraining', action='store_true', help="pretrain network on 1 rule tasks")
+parser.add_argument('--nonegations', action='store_true', help="do not use negations of 1 rule tasks")
 parser.add_argument('--nepochs', type=int, default=100, help='number of epochs to run on practiced data')
 parser.add_argument('--optimizer', type=str, default='adam', help='default optimizer to train on practiced tasks (DEFAULT: adam')
 parser.add_argument('--practice', action='store_true', help="Train on practiced tasks")
@@ -46,8 +45,8 @@ def run(args):
     nsimulations = args.nsimulations
     si_c = args.si_c
     practice = args.practice
-    negation = args.negation
-    posneg = args.posneg
+    nonegation = args.nonegation
+    negation = True if not nonegation else False
     n_epochs = args.nepochs
     optimizer = args.optimizer
     num_layers = args.num_layers
@@ -60,7 +59,7 @@ def run(args):
     cuda = args.cuda
     verbose = args.verbose
 
-    outputdir = datadir + '/results/experiment5/'
+    outputdir = datadir + '/results/experiment7/'
 
     #save_model = save_model + '_' + batchname
     save_model = save_model + '_' + optimizer
@@ -73,17 +72,11 @@ def run(args):
     if pretraining:
         save_model = save_model + '_pretraining'
 
-    if negation:
-        save_model = save_model + '_negation'
-
-    if posneg and not negation:
-        save_model = save_model + '_posneg'
-    if posneg and negation:
-        raise Exception("Can't have both positive and balanced (pos & neg) pretraining")
+    if nonegation:
+        save_model = save_model + '_nonegation'
 
     if practice:
         save_model = save_model + '_practice'
-
 
     if cuda:
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -125,44 +118,33 @@ def run(args):
 
     #### Load pretraining task data
     if pretraining:
-        pretraining_input, pretraining_output = task.create_motorrule_pretraining()  
-        pretraining_input = torch.from_numpy(pretraining_input).float()
-        pretraining_output = torch.from_numpy(pretraining_output).long()
+        motor_pretraining_input, motor_pretraining_output = task.create_motor_pretraining(negation=negation)  
+        motor_pretraining_input = torch.from_numpy(motor_pretraining_input).float()
+        motor_pretraining_output = torch.from_numpy(motor_pretraining_output).long()
         if cuda:
-            pretraining_input = pretraining_input.cuda()
-            pretraining_output = pretraining_output.cuda()
-        experiment.pretraining_input = pretraining_input
-        experiment.pretraining_output = pretraining_output
+            motor_pretraining_input = motor_pretraining_input.cuda()
+            motor_pretraining_output = motor_pretraining_output.cuda()
+        experiment.motor_pretraining_input = motor_pretraining_input
+        experiment.motor_pretraining_output = motor_pretraining_output
 
-        sensorimotor_pretraining_input, sensorimotor_pretraining_output = task.create_sensorimotor_pretraining(negation=negation)
-        sensorimotor_pretraining_input = torch.from_numpy(sensorimotor_pretraining_input).float()
-        sensorimotor_pretraining_output = torch.from_numpy(sensorimotor_pretraining_output).long()
+        sensory_pretraining_input, sensory_pretraining_output = task.create_sensory_pretraining(negation=negation)
+        sensory_pretraining_input = torch.from_numpy(sensory_pretraining_input).float()
+        sensory_pretraining_output = torch.from_numpy(sensory_pretraining_output).long()
         if cuda:
-            sensorimotor_pretraining_input = sensorimotor_pretraining_input.cuda()
-            sensorimotor_pretraining_output = sensorimotor_pretraining_output.cuda()
-        experiment.sensorimotor_pretraining_input = sensorimotor_pretraining_input
-        experiment.sensorimotor_pretraining_output = sensorimotor_pretraining_output
+            sensory_pretraining_input = sensory_pretraining_input.cuda()
+            sensory_pretraining_output = sensory_pretraining_output.cuda()
+        experiment.sensory_pretraining_input = sensory_pretraining_input
+        experiment.sensory_pretraining_output = sensory_pretraining_output
 
-        if posneg: #if both positive and negative balanced training is required, also load other sensorimotor task
-            sensorimotor_pretraining_input, sensorimotor_pretraining_output = task.create_sensorimotor_pretraining(negation=True)
-            sensorimotor_pretraining_input = torch.from_numpy(sensorimotor_pretraining_input).float()
-            sensorimotor_pretraining_output = torch.from_numpy(sensorimotor_pretraining_output).long()
-            if cuda:
-                sensorimotor_pretraining_input = sensorimotor_pretraining_input.cuda()
-                sensorimotor_pretraining_output = sensorimotor_pretraining_output.cuda()
-            experiment.sensorimotor_pretraining_input_neg = sensorimotor_pretraining_input
-            experiment.sensorimotor_pretraining_output_neg = sensorimotor_pretraining_output
-            # Pass this as avariable
-            experiment.posneg = posneg
 
-        logicalsensory_pretraining_input, logicalsensory_pretraining_output = task.create_logicalsensory_pretraining()
-        logicalsensory_pretraining_input = torch.from_numpy(logicalsensory_pretraining_input).float()
-        logicalsensory_pretraining_output = torch.from_numpy(logicalsensory_pretraining_output).long()
+        logic_pretraining_input, logic_pretraining_output = task.create_logic_pretraining(negation=negation)
+        logic_pretraining_input = torch.from_numpy(logic_pretraining_input).float()
+        logic_pretraining_output = torch.from_numpy(logic_pretraining_output).long()
         if cuda:
-            logicalsensory_pretraining_input = logicalsensory_pretraining_input.cuda()
-            logicalsensory_pretraining_output = logicalsensory_pretraining_output.cuda()
-        experiment.logicalsensory_pretraining_input = logicalsensory_pretraining_input
-        experiment.logicalsensory_pretraining_output = logicalsensory_pretraining_output
+            logic_pretraining_input = logic_pretraining_input.cuda()
+            logic_pretraining_output = logic_pretraining_output.cuda()
+        experiment.logic_pretraining_input = logic_pretraining_input
+        experiment.logic_pretraining_output = logic_pretraining_output
 
 
 
@@ -236,7 +218,7 @@ def run(args):
                 n_practiced_tasks = 0
 
             #if verbose: print('** TRAINING ON', n_practiced_tasks, 'PRACTICED TASKS ** ... simulation', sim, ' |', modelname, '| cuda:', cuda)
-            network, acc = trainANN.train(experiment,si_c=si_c,n_epochs=n_epochs,datadir=datadir,practice=practice,optimizer=optimizer,
+            network, acc = trainANN_1rule.train(experiment,si_c=si_c,n_epochs=n_epochs,datadir=datadir,practice=practice,optimizer=optimizer,
                                           num_hidden=num_hidden,num_hidden_layers=num_layers,learning_rate=learning_rate,save=save,
                                           save_model=outputdir+modelname+'.pt',verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
         
