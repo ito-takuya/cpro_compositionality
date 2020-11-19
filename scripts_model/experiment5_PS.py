@@ -257,7 +257,7 @@ def run(args):
 
             novel_acc = []
             for i in range(len(experiment.novelRuleSet)):
-                outputs, hidden = network.forward(experiment.novel_inputs[i,:,:],noise=True)
+                outputs, hidden = network.forward(experiment.novel_inputs[i,:,:],noise=False)
                 outputs[:,4:] = 0
                 acc = mod.accuracyScore(network,outputs,experiment.novel_targets[i,:])
                 novel_acc.append(acc)
