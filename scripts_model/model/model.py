@@ -285,7 +285,7 @@ def train(network, inputs, targets, si=True, ps_optim=None, dropout=False):
     else:
         return outputs, targets, loss.item()
     #return outputs, targets, ps_reg 
-t
+
 def trainps(network,inputs_ps,targets_ps,ps_optim,dropout=False):
     """Train network"""
 
