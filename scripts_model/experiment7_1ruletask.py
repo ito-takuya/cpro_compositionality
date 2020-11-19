@@ -12,7 +12,7 @@ import model.task_1ruletasks as task
 import time
 import model.analysis as analysis
 from importlib import reload
-import trainANN as trainANN
+import trainANN_1rule as trainANN
 mod = reload(mod)
 task = reload(task)
 analysis = reload(analysis)
@@ -25,12 +25,12 @@ datadir = '../../data/'
 parser = argparse.ArgumentParser('./main.py', description='Run a set of simulations/models')
 parser.add_argument('--nsimulations', type=int, default=20, help='number of models/simulations to run')
 parser.add_argument('--pretraining', action='store_true', help="pretrain network on 1 rule tasks")
-parser.add_argument('--nonegations', action='store_true', help="do not use negations of 1 rule tasks")
+parser.add_argument('--nonegation', action='store_true', help="do not use negations of 1 rule tasks")
 parser.add_argument('--nepochs', type=int, default=100, help='number of epochs to run on practiced data')
 parser.add_argument('--optimizer', type=str, default='adam', help='default optimizer to train on practiced tasks (DEFAULT: adam')
 parser.add_argument('--practice', action='store_true', help="Train on practiced tasks")
 parser.add_argument('--cuda', action='store_true', help="use gpu/cuda")
-parser.add_argument('--save_model', type=str, default="expt5", help='string name to output models (DEFAULT: ANN)')
+parser.add_argument('--save_model', type=str, default="expt7", help='string name to output models (DEFAULT: ANN)')
 parser.add_argument('--verbose', action='store_true', help='verbose')
 parser.add_argument('--num_layers', type=int, default=2, help="number of hidden layers (DEFAULT: 2")
 parser.add_argument('--num_hidden', type=int, default=256, help="number of units in hidden layers (DEFAULT: 256")
@@ -147,6 +147,35 @@ def run(args):
         experiment.logic_pretraining_output = logic_pretraining_output
 
 
+        logicalsensory_pretraining_input, logicalsensory_pretraining_output = task.create_logicalsensory_pretraining()
+        logicalsensory_pretraining_input = torch.from_numpy(logicalsensory_pretraining_input).float()
+        logicalsensory_pretraining_output = torch.from_numpy(logicalsensory_pretraining_output).long()
+        if cuda:
+            logicalsensory_pretraining_input = logicalsensory_pretraining_input.cuda()
+            logicalsensory_pretraining_output = logicalsensory_pretraining_output.cuda()
+        experiment.logicalsensory_pretraining_input = logicalsensory_pretraining_input
+        experiment.logicalsensory_pretraining_output = logicalsensory_pretraining_output
+
+
+        sensorimotor_pretraining_input, sensorimotor_pretraining_output = task.create_sensorimotor_pretraining()
+        sensorimotor_pretraining_input = torch.from_numpy(sensorimotor_pretraining_input).float()
+        sensorimotor_pretraining_output = torch.from_numpy(sensorimotor_pretraining_output).long()
+        if cuda:
+            sensorimotor_pretraining_input = sensorimotor_pretraining_input.cuda()
+            sensorimotor_pretraining_output = sensorimotor_pretraining_output.cuda()
+        experiment.sensorimotor_pretraining_input = sensorimotor_pretraining_input
+        experiment.sensorimotor_pretraining_output = sensorimotor_pretraining_output
+
+
+        sensorimotor_pretraining_input, sensorimotor_pretraining_output = task.create_sensorimotor_pretraining(negation=True)
+        sensorimotor_pretraining_input = torch.from_numpy(sensorimotor_pretraining_input).float()
+        sensorimotor_pretraining_output = torch.from_numpy(sensorimotor_pretraining_output).long()
+        if cuda:
+            sensorimotor_pretraining_input = sensorimotor_pretraining_input.cuda()
+            sensorimotor_pretraining_output = sensorimotor_pretraining_output.cuda()
+        experiment.sensorimotor_pretraining_input_neg = sensorimotor_pretraining_input
+        experiment.sensorimotor_pretraining_output_neg = sensorimotor_pretraining_output
+
 
     ###########################################
     #### run simulations
@@ -218,7 +247,7 @@ def run(args):
                 n_practiced_tasks = 0
 
             #if verbose: print('** TRAINING ON', n_practiced_tasks, 'PRACTICED TASKS ** ... simulation', sim, ' |', modelname, '| cuda:', cuda)
-            network, acc = trainANN_1rule.train(experiment,si_c=si_c,n_epochs=n_epochs,datadir=datadir,practice=practice,optimizer=optimizer,
+            network, acc = trainANN.train(experiment,si_c=si_c,n_epochs=n_epochs,datadir=datadir,practice=practice,optimizer=optimizer,
                                           num_hidden=num_hidden,num_hidden_layers=num_layers,learning_rate=learning_rate,save=save,
                                           save_model=outputdir+modelname+'.pt',verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
         
@@ -227,7 +256,7 @@ def run(args):
             
             #### Save accuracies by task
             for i in range(len(experiment.practicedRuleSet)):
-                outputs, hidden = network.forward(experiment.prac_inputs[i,:,:],noise=True)
+                outputs, hidden = network.forward(experiment.prac_inputs[i,:,:],noise=False)
                 outputs[:,4:] = 0
                 acc = mod.accuracyScore(network,outputs,experiment.prac_targets[i,:])
                 df_pertask['Accuracy'].append(acc)
@@ -239,7 +268,7 @@ def run(args):
 
             novel_acc = []
             for i in range(len(experiment.novelRuleSet)):
-                outputs, hidden = network.forward(experiment.novel_inputs[i,:,:],noise=True)
+                outputs, hidden = network.forward(experiment.novel_inputs[i,:,:],noise=False)
                 outputs[:,4:] = 0
                 acc = mod.accuracyScore(network,outputs,experiment.novel_targets[i,:])
                 novel_acc.append(acc)

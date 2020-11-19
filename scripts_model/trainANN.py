@@ -98,7 +98,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         else: 
             loss3 = 0
         count = 0
-        lossmagnitude = 0.1
+        lossmagnitude = 0.01
         while loss1>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude: 
 
             ##### Motor rule pretraining
