@@ -51,6 +51,10 @@ class ANN(torch.nn.Module):
         #self.func_out = torch.nn.Softmax(dim=1)
         #self.func_out1d = torch.nn.Softmax(dim=0) # used for online learning (since only one trial is trained at a time)
         self.func = torch.nn.ReLU()
+        # Create weights for PS training
+        self.w_ps = torch.nn.Linear(num_hidden, 1)
+        with torch.no_grad():
+            self.w_ps.weight.copy_(torch.ones(1,num_hidden))
 
         self.dropout_in = torch.nn.Dropout(p=0.2)
         self.dropout_rec = torch.nn.Dropout(p=0.5)
@@ -115,6 +119,48 @@ class ANN(torch.nn.Module):
         # Compute outputs
         h2o = self.w_out(hidden) # Generate linear outupts
         outputs = self.w_out(hidden) # Generate linear outupts
+        #if h2o.dim()==1: # for online learning
+        #    outputs = self.func_out1d(h2o)
+        #else:
+        #    outputs = self.func_out(h2o) # Pass through nonlinearity
+
+        if return1st:
+            return outputs, hidden, hidden1st
+        else:
+            return outputs, hidden
+
+
+    def forward_ps(self,inputs,noise=False,dropout=True,return1st=False):
+        """
+        Run a forward pass of a trial by input_elements matrix
+        """
+        #Add noise to inputs
+        #if noise:
+        #    inputs = inputs + torch.randn(inputs.shape, device=self.device, dtype=torch.float)/5 #(self.num_sensory_inputs+self.num_rule_inputs)
+
+        # Map inputs into RNN space
+        hidden = self.w_in(inputs) 
+        if dropout: hidden = self.dropout_in(hidden)
+        hidden = self.func(hidden)
+        hidden1st = hidden
+        # Define rnn private noise/spont_act
+        if noise:
+            spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)/self.num_hidden
+        #    #spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)/5 #self.num_hidden
+#       #     spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)
+        #    # Add private noise to each unit, and add to the input
+            hidden = hidden + spont_act
+
+        # Run RNN
+        if self.num_hidden_layers>1:
+            for i in range(self.num_hidden_layers-1):
+                hidden = self.w_rec(hidden)
+                if dropout: hidden = self.dropout_rec(hidden)
+                hidden = self.func(hidden)
+        
+        # Compute outputs
+        h2o = self.w_out(hidden) # Generate linear outupts
+        outputs = self.w_ps(hidden) # Generate linear outupts
         #if h2o.dim()==1: # for online learning
         #    outputs = self.func_out1d(h2o)
         #else:
@@ -239,8 +285,25 @@ def train(network, inputs, targets, si=True, ps_optim=None, dropout=False):
     else:
         return outputs, targets, loss.item()
     #return outputs, targets, ps_reg 
-
+t
 def trainps(network,inputs_ps,targets_ps,ps_optim,dropout=False):
+    """Train network"""
+
+
+    ps_outputs, hidden = network.forward_ps(ps_optim.inputs_ps,noise=True,dropout=dropout)
+    ps = calculatePS(hidden,ps_optim.match_logic_ind)
+    logicps = ps # Want to maximize
+    # Sensory PS
+    ps = calculatePS(hidden,ps_optim.match_sensory_ind)
+    sensoryps = ps
+    # Motor PS
+    ps = calculatePS(hidden,ps_optim.match_motor_ind)
+    motorps = ps
+
+    return logicps, sensoryps, motorps
+
+
+def trainps_orig(network,inputs_ps,targets_ps,ps_optim,dropout=False):
     """Train network"""
 
     network.train()
@@ -248,27 +311,30 @@ def trainps(network,inputs_ps,targets_ps,ps_optim,dropout=False):
     network.optimizer.zero_grad()
 
 
-    ps_outputs, hidden = network.forward(ps_optim.inputs_ps,noise=True,dropout=False)
+    ps_outputs, hidden = network.forward_ps(ps_optim.inputs_ps,noise=True,dropout=dropout)
     ps = calculatePS(hidden,ps_optim.match_logic_ind)
-    logicps = 1.0-ps # Want to maximize
+    logicps = ps # Want to maximize
     # Sensory PS
     ps = calculatePS(hidden,ps_optim.match_sensory_ind)
-    sensoryps = np.abs(ps)
+    sensoryps = ps
     # Motor PS
     ps = calculatePS(hidden,ps_optim.match_motor_ind)
-    motorps = 1.0-ps
-    ps_reg = (logicps + sensoryps + motorps) * ps_optim.ps
-    msefunc = torch.nn.MSELoss()
-    loss = msefunc(ps_outputs,ps_outputs)
-
-    #ps_loss = (1.0-logicps) + (1.0-motorps)
-    ps_loss = np.abs(sensoryps)
+    motorps = ps
+    #ps_reg = (logicps + sensoryps + motorps) * ps_optim.ps
+    msefunc = torch.nn.MSELoss(reduction='mean')
 
     ps_reg = torch.tensor(0., requires_grad=True).to(network.device)
-    for name, param in network.named_parameters():
-        if 'weight' in name:
-            ps_reg += (param.norm(2) + ps_loss) * ps_optim.ps
-    loss += ps_reg
+    ps_reg += (logicps) * ps_optim.ps
+    loss = msefunc(torch.mean(ps_outputs),ps_reg)
+
+    #ps_loss = (1.0-logicps) + (1.0-motorps)
+    ##ps_loss = np.abs(sensoryps)
+
+    #ps_reg = torch.tensor(0., requires_grad=True).to(network.device)
+    #for name, param in network.named_parameters():
+    #    if 'weight' in name:
+    #        ps_reg += (param.norm(2) + ps_loss) * ps_optim.ps
+    #loss += ps_reg
     
     # Backprop and update weights
     loss.backward()
