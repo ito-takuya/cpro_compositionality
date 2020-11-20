@@ -18,7 +18,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
           num_rule_inputs=11,num_hidden=128,num_hidden_layers=2,learning_rate=0.0001,
           acc_cutoff=95.0,n_epochs=None,optimizer='adam',
           save_model=None,verbose=True,save=True,
-          lossfunc='MSE',pretraining=False,device='cpu'):
+          lossfunc='MSE',pretraining=False,rule2pretraining=False,device='cpu'):
     """
     'online training model'
     num_hidden - # of hidden units
@@ -97,34 +97,34 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
                                                motor_pretraining_input,
                                                motor_pretraining_output,
                                                si=W,dropout=True)
-#
-            #outputs, targets, loss4 = mod.train(network,
-            #                                   experiment.logicalsensory_pretraining_input,
-            #                                   experiment.logicalsensory_pretraining_output,
-            #                                   si=W,dropout=True)
-#
-            #outputs, targets, loss5 = mod.train(network,
-            #                                   experiment.sensorimotor_pretraining_input,
-            #                                   experiment.sensorimotor_pretraining_output,
-            #                                   si=W,dropout=True)
-#
-#
-#            outputs, targets, loss5 = mod.train(network,
-#                                               experiment.sensorimotor_pretraining_input_neg,
-#                                               experiment.sensorimotor_pretraining_output_neg,
-#                                               si=W,dropout=True)
-#
-            #accuracy3 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
-        #    if count%200==0:
-        #        print('**PRETRAINING**  iteration', count)
-        #        print('\tloss on logic task:', loss1)
-        #        print('\tloss on sensory task:', loss2)
-        #        print('\tloss on motor task:', loss3)
-        #        print('\tloss on logicalsensory task:', loss4)
-        #        #print('\tloss on sensorimotor task:', loss4)
-        #      #  print('\taccuracy on practiced tasks:', accuracy)
 
+            count += 1
+
+
+
+    if rule2pretraining:
+
+    
+        ##### Now train on simple logicalsensory rule pretraining
+        loss4 = 1
+        loss5 = 1
+        count = 0
+        lossmagnitude = 0.001
+        while loss4>lossmagnitude or loss5>lossmagnitude:
+        #while loss1>lossmagnitude or loss4>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude:
+        #while loss1>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude or loss4>lossmagnitude or loss5>lossmagnitude:
+        #while loss1>lossmagnitude or loss4>lossmagnitude or loss5>lossmagnitude: 
+
+            outputs, targets, loss4 = mod.train(network,
+                                               experiment.logicalsensory_pretraining_input,
+                                               experiment.logicalsensory_pretraining_output,
+                                               si=W,dropout=True)
+#
+            outputs, targets, loss5 = mod.train(network,
+                                               experiment.sensorimotor_pretraining_input,
+                                               experiment.sensorimotor_pretraining_output,
+                                               si=W,dropout=True)
 
             count += 1
 
