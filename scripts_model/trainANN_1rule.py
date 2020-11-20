@@ -65,7 +65,6 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         motor_pretraining_output= experiment.motor_pretraining_output
 
     
-        ##### Now train on simple logicalsensory rule pretraining
         loss1 = 1
         loss2 = 1
         loss3 = 1
@@ -74,9 +73,6 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         count = 0
         lossmagnitude = 0.001
         while loss1>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude:
-        #while loss1>lossmagnitude or loss4>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude:
-        #while loss1>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude or loss4>lossmagnitude or loss5>lossmagnitude:
-        #while loss1>lossmagnitude or loss4>lossmagnitude or loss5>lossmagnitude: 
 
             #### Logic task pretraining
             outputs, targets, loss1 = mod.train(network,
@@ -112,9 +108,6 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         count = 0
         lossmagnitude = 0.001
         while loss4>lossmagnitude or loss5>lossmagnitude:
-        #while loss1>lossmagnitude or loss4>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude:
-        #while loss1>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude or loss4>lossmagnitude or loss5>lossmagnitude:
-        #while loss1>lossmagnitude or loss4>lossmagnitude or loss5>lossmagnitude: 
 
             outputs, targets, loss4 = mod.train(network,
                                                experiment.logicalsensory_pretraining_input,
@@ -125,6 +118,8 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
                                                experiment.sensorimotor_pretraining_input,
                                                experiment.sensorimotor_pretraining_output,
                                                si=W,dropout=True)
+
+            #if count%20==0: print('loss4', loss4,'loss5',loss5)
 
             count += 1
 

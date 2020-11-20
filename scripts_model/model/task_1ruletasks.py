@@ -1152,26 +1152,28 @@ def _create_logicalsensory_pretraining_rules():
     # For RNN training
     taskrules['Code'] = []
     
-    for i in range(4):
-        se = sensorykeys[i]
-        lo = logickeys[i]
+    #for i in range(4):
+    for lo in logicRules:
+        for se in sensoryRules:
+            #se = sensorykeys[i]
+            #lo = logickeys[i]
 
-        code = np.zeros((11,))
-        # Sensory rule
-        taskrules['Sensory'].append(se)
-        code[sensoryRules[se]] = 1
-        # Define sensory category
-        if se=='red': category = 'Color'
-        if se=='vertical': category = 'Orientation'
-        if se=='high': category = 'Pitch'
-        if se=='constant': category = 'Constant'
-        taskrules['SensoryCategory'].append(category)
-        
-        # Motor rule
-        taskrules['Logic'].append(lo)
-        code[logicRules[lo]] = 1
-        
-        taskrules['Code'].append(list(code))
+            code = np.zeros((11,))
+            # Sensory rule
+            taskrules['Sensory'].append(se)
+            code[sensoryRules[se]] = 1
+            # Define sensory category
+            if se=='red': category = 'Color'
+            if se=='vertical': category = 'Orientation'
+            if se=='high': category = 'Pitch'
+            if se=='constant': category = 'Constant'
+            taskrules['SensoryCategory'].append(category)
+            
+            # Motor rule
+            taskrules['Logic'].append(lo)
+            code[logicRules[lo]] = 1
+            
+            taskrules['Code'].append(list(code))
                 
     return pd.DataFrame(taskrules)
 
@@ -1272,7 +1274,7 @@ def create_logicalsensory_pretraining():
     return input_matrix, output_matrix 
 
 
-def _create_sensorimotor_pretraining_rules():
+def _create_sensorimotor_pretraining_rules(negation=True):
     """
     create rule combinations with one sensory rule and one motor rule
     """    
@@ -1301,54 +1303,52 @@ def _create_sensorimotor_pretraining_rules():
     # For RNN training
     taskrules['Code'] = []
     
-    #for se in sensoryRules:
-    #    for mo in motorRules:
-    for i in range(4):
-        se = sensorykeys[i]
-        mo = motorkeys[i]
+    #for i in range(4):
+    for se in sensoryRules:
+        for mo in motorRules:
         
-        code = np.zeros((11,))
-        # Sensory rule
-        taskrules['Sensory'].append(se)
-        code[sensoryRules[se]] = 1
-        # Define sensory category
-        if se=='red': category = 'Color'
-        if se=='vertical': category = 'Orientation'
-        if se=='high': category = 'Pitch'
-        if se=='constant': category = 'Constant'
-        taskrules['SensoryCategory'].append(category)
-        
-        # Motor rule
-        taskrules['Motor'].append(mo)
-        code[motorRules[mo]] = 1
-        
-        taskrules['Code'].append(list(code))
+            code = np.zeros((11,))
+            # Sensory rule
+            taskrules['Sensory'].append(se)
+            code[sensoryRules[se]] = 1
+            # Define sensory category
+            if se=='red': category = 'Color'
+            if se=='vertical': category = 'Orientation'
+            if se=='high': category = 'Pitch'
+            if se=='constant': category = 'Constant'
+            taskrules['SensoryCategory'].append(category)
+            
+            # Motor rule
+            taskrules['Motor'].append(mo)
+            code[motorRules[mo]] = 1
+            
+            taskrules['Code'].append(list(code))
 
     #### Add negation
-    for i in range(4):
-        se = sensorykeys[i]
-        mo = motorkeys[i]
-        
-        code = np.zeros((11,))
-
-        # Negation
-        code[0] = 1
-        # Sensory rule
-        taskrules['Sensory'].append(se)
-        code[sensoryRules[se]] = 1
-        # Define sensory category
-        if se=='red': category = 'Color'
-        if se=='vertical': category = 'Orientation'
-        if se=='high': category = 'Pitch'
-        if se=='constant': category = 'Constant'
-        taskrules['SensoryCategory'].append(category)
-        
-        # Motor rule
-        taskrules['Motor'].append(mo)
-        code[motorRules[mo]] = 1
-        
-        taskrules['Code'].append(list(code))
+    if negation:
+        for se in sensoryRules:
+            for mo in motorRules:
                 
+                code = np.zeros((11,))
+
+                # Negation
+                code[0] = 1
+                # Sensory rule
+                taskrules['Sensory'].append(se)
+                code[sensoryRules[se]] = 1
+                # Define sensory category
+                if se=='red': category = 'Color'
+                if se=='vertical': category = 'Orientation'
+                if se=='high': category = 'Pitch'
+                if se=='constant': category = 'Constant'
+                taskrules['SensoryCategory'].append(category)
+                
+                # Motor rule
+                taskrules['Motor'].append(mo)
+                code[motorRules[mo]] = 1
+                
+                taskrules['Code'].append(list(code))
+                    
     return pd.DataFrame(taskrules)
 
 def _solve_sensorimotor_pretraining_task(task_rules,stimuli,printTask=False):
@@ -1487,7 +1487,7 @@ def create_sensorimotor_pretraining(negation=False):
     sensory + motor rules (stimulus-motor associations)
     """
     stimuliSet = _create_pretraining_stimuli()
-    taskRuleSet = _create_sensorimotor_pretraining_rules()
+    taskRuleSet = _create_sensorimotor_pretraining_rules(negation=negation)
 
     # Create 1d array to randomly sample indices from
     stimIndices = np.arange(len(stimuliSet))
@@ -1509,7 +1509,6 @@ def create_sensorimotor_pretraining(negation=False):
             # Find input code for this task set
             input_arr[rule_ind] = taskRuleSet.Code[tasknum] 
             # If this is the 'negation' version of the task, make sure to include all 1s for the 'not' rule
-            if negation: input_arr[0] = 1
             #
             input_arr[stim_ind] = stimuliSet.Code[i]
             input_matrix.append(input_arr)
