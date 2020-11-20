@@ -171,17 +171,6 @@ def run(args):
         experiment.sensorimotor_pretraining_input = sensorimotor_pretraining_input
         experiment.sensorimotor_pretraining_output = sensorimotor_pretraining_output
 
-
-        sensorimotor_pretraining_input, sensorimotor_pretraining_output = task.create_sensorimotor_pretraining()
-        sensorimotor_pretraining_input = torch.from_numpy(sensorimotor_pretraining_input).float()
-        sensorimotor_pretraining_output = torch.from_numpy(sensorimotor_pretraining_output).long()
-        if cuda:
-            sensorimotor_pretraining_input = sensorimotor_pretraining_input.cuda()
-            sensorimotor_pretraining_output = sensorimotor_pretraining_output.cuda()
-        experiment.sensorimotor_pretraining_input_neg = sensorimotor_pretraining_input
-        experiment.sensorimotor_pretraining_output_neg = sensorimotor_pretraining_output
-
-
     ###########################################
     #### run simulations
     for sim in range(nsimulations):
