@@ -167,7 +167,7 @@ def run(args):
         experiment.sensorimotor_pretraining_output = sensorimotor_pretraining_output
 
 
-        sensorimotor_pretraining_input, sensorimotor_pretraining_output = task.create_sensorimotor_pretraining(negation=True)
+        sensorimotor_pretraining_input, sensorimotor_pretraining_output = task.create_sensorimotor_pretraining()
         sensorimotor_pretraining_input = torch.from_numpy(sensorimotor_pretraining_input).float()
         sensorimotor_pretraining_output = torch.from_numpy(sensorimotor_pretraining_output).long()
         if cuda:

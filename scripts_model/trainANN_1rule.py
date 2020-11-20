@@ -74,6 +74,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         count = 0
         lossmagnitude = 0.001
         while loss1>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude:
+        #while loss1>lossmagnitude or loss4>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude:
         #while loss1>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude or loss4>lossmagnitude or loss5>lossmagnitude:
         #while loss1>lossmagnitude or loss4>lossmagnitude or loss5>lossmagnitude: 
 
@@ -97,15 +98,15 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
                                                motor_pretraining_output,
                                                si=W,dropout=True)
 #
-#            outputs, targets, loss4 = mod.train(network,
-#                                               experiment.logicalsensory_pretraining_input,
-#                                               experiment.logicalsensory_pretraining_output,
-#                                               si=W,dropout=True)
+            #outputs, targets, loss4 = mod.train(network,
+            #                                   experiment.logicalsensory_pretraining_input,
+            #                                   experiment.logicalsensory_pretraining_output,
+            #                                   si=W,dropout=True)
 #
-#            outputs, targets, loss4 = mod.train(network,
-#                                               experiment.sensorimotor_pretraining_input,
-#                                               experiment.sensorimotor_pretraining_output,
-#                                               si=W,dropout=True)
+            #outputs, targets, loss5 = mod.train(network,
+            #                                   experiment.sensorimotor_pretraining_input,
+            #                                   experiment.sensorimotor_pretraining_output,
+            #                                   si=W,dropout=True)
 #
 #
 #            outputs, targets, loss5 = mod.train(network,

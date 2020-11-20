@@ -8,7 +8,7 @@ import argparse
 np.set_printoptions(suppress=True)
 import os
 import model.model as mod
-import model.task as task
+import model.task_1ruletasks as task
 import time
 import model.analysis as analysis
 from importlib import reload
@@ -45,10 +45,11 @@ parser.add_argument('--si_c', type=float, default=0.0, help='synaptic intelligen
 def run(args):
     args 
     nsimulations = args.nsimulations
-    if args.ps==0.0:
-        ps_optim = None
-    else:
-        ps_optim = args.ps
+    #if args.ps==0.0:
+    #    ps_optim = None
+    #else:
+    #    ps_optim = args.ps
+    ps_optim = args.ps
     si_c = args.si_c
     practice = args.practice
     negation = args.negation
@@ -134,35 +135,34 @@ def run(args):
 
     #### Load pretraining task data
     if pretraining:
-        pretraining_input, pretraining_output = task.create_motorrule_pretraining()  
-        pretraining_input = torch.from_numpy(pretraining_input).float()
-        pretraining_output = torch.from_numpy(pretraining_output).long()
+        motor_pretraining_input, motor_pretraining_output = task.create_motor_pretraining(negation=negation)  
+        motor_pretraining_input = torch.from_numpy(motor_pretraining_input).float()
+        motor_pretraining_output = torch.from_numpy(motor_pretraining_output).long()
         if cuda:
-            pretraining_input = pretraining_input.cuda()
-            pretraining_output = pretraining_output.cuda()
-        experiment.pretraining_input = pretraining_input
-        experiment.pretraining_output = pretraining_output
+            motor_pretraining_input = motor_pretraining_input.cuda()
+            motor_pretraining_output = motor_pretraining_output.cuda()
+        experiment.motor_pretraining_input = motor_pretraining_input
+        experiment.motor_pretraining_output = motor_pretraining_output
 
-        sensorimotor_pretraining_input, sensorimotor_pretraining_output = task.create_sensorimotor_pretraining(negation=negation)
-        sensorimotor_pretraining_input = torch.from_numpy(sensorimotor_pretraining_input).float()
-        sensorimotor_pretraining_output = torch.from_numpy(sensorimotor_pretraining_output).long()
+        sensory_pretraining_input, sensory_pretraining_output = task.create_sensory_pretraining(negation=negation)
+        sensory_pretraining_input = torch.from_numpy(sensory_pretraining_input).float()
+        sensory_pretraining_output = torch.from_numpy(sensory_pretraining_output).long()
         if cuda:
-            sensorimotor_pretraining_input = sensorimotor_pretraining_input.cuda()
-            sensorimotor_pretraining_output = sensorimotor_pretraining_output.cuda()
-        experiment.sensorimotor_pretraining_input = sensorimotor_pretraining_input
-        experiment.sensorimotor_pretraining_output = sensorimotor_pretraining_output
+            sensory_pretraining_input = sensory_pretraining_input.cuda()
+            sensory_pretraining_output = sensory_pretraining_output.cuda()
+        experiment.sensory_pretraining_input = sensory_pretraining_input
+        experiment.sensory_pretraining_output = sensory_pretraining_output
 
-        if posneg: #if both positive and negative balanced training is required, also load other sensorimotor task
-            sensorimotor_pretraining_input, sensorimotor_pretraining_output = task.create_sensorimotor_pretraining(negation=True)
-            sensorimotor_pretraining_input = torch.from_numpy(sensorimotor_pretraining_input).float()
-            sensorimotor_pretraining_output = torch.from_numpy(sensorimotor_pretraining_output).long()
-            if cuda:
-                sensorimotor_pretraining_input = sensorimotor_pretraining_input.cuda()
-                sensorimotor_pretraining_output = sensorimotor_pretraining_output.cuda()
-            experiment.sensorimotor_pretraining_input_neg = sensorimotor_pretraining_input
-            experiment.sensorimotor_pretraining_output_neg = sensorimotor_pretraining_output
-            # Pass this as avariable
-            experiment.posneg = posneg
+
+        logic_pretraining_input, logic_pretraining_output = task.create_logic_pretraining(negation=negation)
+        logic_pretraining_input = torch.from_numpy(logic_pretraining_input).float()
+        logic_pretraining_output = torch.from_numpy(logic_pretraining_output).long()
+        if cuda:
+            logic_pretraining_input = logic_pretraining_input.cuda()
+            logic_pretraining_output = logic_pretraining_output.cuda()
+        experiment.logic_pretraining_input = logic_pretraining_input
+        experiment.logic_pretraining_output = logic_pretraining_output
+
 
         logicalsensory_pretraining_input, logicalsensory_pretraining_output = task.create_logicalsensory_pretraining()
         logicalsensory_pretraining_input = torch.from_numpy(logicalsensory_pretraining_input).float()
@@ -172,6 +172,16 @@ def run(args):
             logicalsensory_pretraining_output = logicalsensory_pretraining_output.cuda()
         experiment.logicalsensory_pretraining_input = logicalsensory_pretraining_input
         experiment.logicalsensory_pretraining_output = logicalsensory_pretraining_output
+
+
+        sensorimotor_pretraining_input, sensorimotor_pretraining_output = task.create_sensorimotor_pretraining()
+        sensorimotor_pretraining_input = torch.from_numpy(sensorimotor_pretraining_input).float()
+        sensorimotor_pretraining_output = torch.from_numpy(sensorimotor_pretraining_output).long()
+        if cuda:
+            sensorimotor_pretraining_input = sensorimotor_pretraining_input.cuda()
+            sensorimotor_pretraining_output = sensorimotor_pretraining_output.cuda()
+        experiment.sensorimotor_pretraining_input = sensorimotor_pretraining_input
+        experiment.sensorimotor_pretraining_output = sensorimotor_pretraining_output
 
 
 
@@ -235,7 +245,7 @@ def run(args):
 
         n_practiced_tasks = len(experiment.practicedRuleSet)
         while n_practiced_tasks < len(experiment.taskRuleSet):
-            if n_practiced_tasks not in [4]:
+            if n_practiced_tasks not in [4,60]:
                 n_practiced_tasks += 1
                 continue
             else:

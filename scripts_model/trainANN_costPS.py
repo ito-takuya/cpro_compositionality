@@ -53,6 +53,9 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
     else:
         W = None
 
+
+
+
     # Optimize parallelism on task rule sets
     if ps_optim is not None:
         
@@ -83,40 +86,22 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         ## If there's the negative equivalent of the sensorimotor task, then make sure it trains loss
         count = 0
         #while loss1>0.01: 
-        while loss1>-10000: 
+        if ps_optim!=0:
+            while loss1>0.01: 
 
 
-            #### Logical sensory task pretraining
-            outputs, targets, loss1, logicps, sensoryps, motorps = mod.trainps(network,taskcontext_inputs,targets_ps,ps_object,dropout=False)
-            loss_ps = (1.0-logicps) + (1.0-motorps) #+ sensoryps
-            l2loss = torch.tensor(0., requires_grad=True).to(network.device)
-            for name, param in network.named_parameters():
-                if 'weight' in name:
-                    l2loss += param.norm(2)*0.1 + .5
-            print('Logic ps:', logicps, 'Motor ps:', motorps, 'Sensory ps:', sensoryps,'| regular loss:', loss1, 'l2norm:', l2loss.detach().item())
-            count += 1
+                #### Logical sensory task pretraining
+                outputs, targets, loss1, logicps, sensoryps, motorps = mod.trainps(network,taskcontext_inputs,targets_ps,ps_object,dropout=False)
+                loss_ps = (1.0-logicps) + (1.0-motorps) #+ sensoryps
+                l2loss = torch.tensor(0., requires_grad=True).to(network.device)
+                for name, param in network.named_parameters():
+                    if 'weight' in name:
+                        l2loss += param.norm(2)*0.1 + .5
+                print('Logic ps:', logicps, 'Motor ps:', motorps, 'Sensory ps:', sensoryps,'| regular loss:', loss1, 'l2norm:', l2loss.detach().item())
+                count += 1
 
 
 
-#        networks = []
-#        logicscore = []
-#        sensoryscore = []
-#        motorscore = []
-#        for i in range(1000):
-#            network = mod.ANN(num_rule_inputs=num_rule_inputs,
-#                                 si_c=si_c,
-#                                 num_sensory_inputs=16,
-#                                 num_hidden_layers=num_hidden_layers,
-#                                 num_hidden=num_hidden,
-#                                 num_motor_decision_outputs=6,
-#                                 learning_rate=learning_rate,
-#                                 lossfunc=lossfunc,device=device)
-#
-#            logicps, sensoryps, motorps = mod.trainps(network,taskcontext_inputs,targets_ps,ps_object,dropout=False)
-#            networks.append(network)
-#            logicscore.append(logicps)
-#            sensoryscore.append(sensoryps)
-#            motorscore.append(motorps)
 
 
 
@@ -124,96 +109,88 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         ps_object = None
 
 
-    if pretraining:
-        nbatches_pretraining = 200
-        pretraining_input = experiment.pretraining_input
-        pretraining_output= experiment.pretraining_output
-
-        sensorimotor_pretraining_input = experiment.sensorimotor_pretraining_input
-        sensorimotor_pretraining_output= experiment.sensorimotor_pretraining_output
-
-        logicalsensory_pretraining_input = experiment.logicalsensory_pretraining_input
-        logicalsensory_pretraining_output= experiment.logicalsensory_pretraining_output
-
-        if hasattr(experiment,'posneg'):
-            sensorimotor_pretraining_input_neg = experiment.sensorimotor_pretraining_input_neg
-            sensorimotor_pretraining_output_neg = experiment.sensorimotor_pretraining_output_neg
-
-
-        ##### First motor rule only pretraining
-#        loss = 1
-#        while loss>0.01: 
-#
-#            #### Motor rule pretraining
-#            outputs, targets, loss = mod.train(network,
-#                                               pretraining_input,
-#                                               pretraining_output,
-#                                               si=W,dropout=True)
-        #for i in range(nbatches_pretraining):
-        #    outputs, targets, loss = mod.train(network,
-        #                                       pretraining_input,
-        #                                       pretraining_output,
-        #                                       si=W,dropout=True)
-
-        #if network.si_c>0:
-        #    network.update_omega(W, network.epsilon)
-
-    
-        ##### Now train on simple logicalsensory rule pretraining
-        loss1 = 1
-        loss2 = 1
-        # If there's the negative equivalent of the sensorimotor task, then make sure it trains loss
-        if hasattr(experiment,'posneg'):
-            loss3 = 1
-        else: 
-            loss3 = 0
-        count = 0
-        lossmagnitude = 0.1
-        while loss1>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude: 
-
-            ##### Motor rule pretraining
-            #outputs, targets, loss = mod.train(network,
-            #                                   pretraining_input,
-            #                                   pretraining_output,
-            #                                   si=W,dropout=True)
-
-            #### Logical sensory task pretraining
-            outputs, targets, loss1 = mod.train(network,
-                                               logicalsensory_pretraining_input,
-                                               logicalsensory_pretraining_output,
-                                               si=W,dropout=True)
-
-            #accuracy = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
-            #accuracy1 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
-
-            outputs, targets, loss2 = mod.train(network,
-                                               sensorimotor_pretraining_input,
-                                               sensorimotor_pretraining_output,
-                                               si=W,dropout=True)
-
-            if hasattr(experiment,'posneg'):
-                outputs, targets, loss3 = mod.train(network,
-                                                   sensorimotor_pretraining_input_neg,
-                                                   sensorimotor_pretraining_output_neg,
-                                                   si=W,dropout=True)
-
-            #accuracy2 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
-
-            #if verbose: 
-            #    if count%200==0:
-            #        print('**PRETRAINING**  iteration', count)
-            #        print('\tloss on logicalsensory task:', loss1)
-            #        print('\tloss on sensorimotor task:', loss2)
-            #        #print('\tloss on motor rule pretraining:', loss)
-            #      #  print('\taccuracy on practiced tasks:', accuracy)
-
-
-            count += 1
 
         #### Sensorimotor task pretraining
 
         if network.si_c>0:
             network.update_omega(W, network.epsilon)
+
+
+
+    if pretraining:
+        logic_pretraining_input = experiment.logic_pretraining_input
+        logic_pretraining_output= experiment.logic_pretraining_output
+
+        sensory_pretraining_input = experiment.sensory_pretraining_input
+        sensory_pretraining_output= experiment.sensory_pretraining_output
+
+        motor_pretraining_input = experiment.motor_pretraining_input
+        motor_pretraining_output= experiment.motor_pretraining_output
+
+    
+        ##### Now train on simple logicalsensory rule pretraining
+        loss1 = 1
+        loss2 = 1
+        loss3 = 1
+        loss4 = 1
+        loss5 = 1
+        count = 0
+        lossmagnitude = 0.001
+        while loss1>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude:
+        #while loss1>lossmagnitude or loss4>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude:
+        #while loss1>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude or loss4>lossmagnitude or loss5>lossmagnitude:
+        #while loss1>lossmagnitude or loss4>lossmagnitude or loss5>lossmagnitude: 
+
+            #### Logic task pretraining
+            outputs, targets, loss1 = mod.train(network,
+                                               logic_pretraining_input,
+                                               logic_pretraining_output,
+                                               si=W,dropout=True)
+
+            #accuracy1 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
+
+            outputs, targets, loss2 = mod.train(network,
+                                               sensory_pretraining_input,
+                                               sensory_pretraining_output,
+                                               si=W,dropout=True)
+
+            #accuracy2 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
+
+            outputs, targets, loss3 = mod.train(network,
+                                               motor_pretraining_input,
+                                               motor_pretraining_output,
+                                               si=W,dropout=True)
+#
+            #outputs, targets, loss4 = mod.train(network,
+            #                                   experiment.logicalsensory_pretraining_input,
+            #                                   experiment.logicalsensory_pretraining_output,
+            #                                   si=W,dropout=True)
+#
+            #outputs, targets, loss5 = mod.train(network,
+            #                                   experiment.sensorimotor_pretraining_input,
+            #                                   experiment.sensorimotor_pretraining_output,
+            #                                   si=W,dropout=True)
+#
+#
+#            outputs, targets, loss5 = mod.train(network,
+#                                               experiment.sensorimotor_pretraining_input_neg,
+#                                               experiment.sensorimotor_pretraining_output_neg,
+#                                               si=W,dropout=True)
+#
+            #accuracy3 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
+
+        #    if count%200==0:
+        #        print('**PRETRAINING**  iteration', count)
+        #        print('\tloss on logic task:', loss1)
+        #        print('\tloss on sensory task:', loss2)
+        #        print('\tloss on motor task:', loss3)
+        #        print('\tloss on logicalsensory task:', loss4)
+        #        #print('\tloss on sensorimotor task:', loss4)
+        #      #  print('\taccuracy on practiced tasks:', accuracy)
+
+
+            count += 1
+
 
     ###### 
     accuracy = 0
@@ -243,12 +220,17 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
                 np.random.shuffle(order)
                 for t in order:
 
-                    ps_optim = None
+                    #ps_optim = None
                     if ps_optim is not None:
+                        #outputs, targets, loss = mod.train(network,
+                        #                                                                 experiment.prac_inputs[t,:,:],
+                        #                                                                 experiment.prac_targets[t,:],
+                        #                                                                 si=W,ps_optim=None,dropout=True)
                         outputs, targets, loss, logicps, sensoryps, motorps = mod.train(network,
-                                                                                         experiment.prac_inputs[t,:,:],
-                                                                                         experiment.prac_targets[t,:],
-                                                                                         si=W,ps_optim=ps_optim,dropout=True)
+                                                                                        experiment.prac_inputs[t,:,:],
+                                                                                        experiment.prac_targets[t,:],
+                                                                                        si=W,ps_optim=ps_object,dropout=False)
+                        #outputs_ps, targets_ps, loss1, logicps, sensoryps, motorps = mod.trainps(network,taskcontext_inputs,targets_ps,ps_object,dropout=False)
                     else:
                         outputs, targets, loss = mod.train(network,
                                                            experiment.prac_inputs[t,:,:],
@@ -258,7 +240,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
                     acc.append(mod.accuracyScore(network,outputs,targets)*100.0)
 
                 if ps_optim is not None:
-                    print('Logic ps:', logicps, 'Motor ps:', motorps, 'Sensory ps:', sensoryps,'| regular loss:', loss)
+                    if epoch%20==0: print('Logic ps:', logicps, 'Motor ps:', motorps, 'Sensory ps:', sensoryps,'| regular loss:', loss)
 
                 
                 accuracy_prac = np.sum(np.asarray(acc)>acc_cutoff)

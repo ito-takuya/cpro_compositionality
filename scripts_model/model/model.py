@@ -54,7 +54,7 @@ class ANN(torch.nn.Module):
         # Create weights for PS training
         self.w_ps = torch.nn.Linear(num_hidden, 1)
         with torch.no_grad():
-            self.w_ps.weight.copy_(-torch.ones(1,num_hidden))# negative since we want to maximize PS
+            self.w_ps.weight.copy_(torch.ones(1,num_hidden))
 
         self.dropout_in = torch.nn.Dropout(p=0.2)
         self.dropout_rec = torch.nn.Dropout(p=0.5)
@@ -256,19 +256,17 @@ def train(network, inputs, targets, si=True, ps_optim=None, dropout=False):
         logicps = ps # Want to maximize
         # Sensory PS
         ps = calculatePS(hidden,ps_optim.match_sensory_ind)
-        sensoryps = ps
+        sensoryps =ps
         # Motor PS
         ps = calculatePS(hidden,ps_optim.match_motor_ind)
         motorps = ps
-
-        #ps_loss = (1.0-logicps) + (1.0-motorps)
-        #ps_loss = sensoryps**2
-        ps_loss = sensoryps**2 + (1.0-logicps) + (1.0-motorps)
+        #ps_reg = (logicps + sensoryps + motorps) * ps_optim.ps
+        msefunc = torch.nn.MSELoss(reduction='mean')
 
         ps_reg = torch.tensor(0., requires_grad=True).to(network.device)
-        for name, param in network.named_parameters():
-            if 'weight' in name:
-                ps_reg += param.norm(2)*.1 + (ps_loss) * ps_optim.ps
+        ps_reg += (3.0-logicps+sensoryps+motorps) * ps_optim.ps
+        #ps_reg += (sensoryps) * ps_optim.ps
+        #loss = -msefunc(torch.mean(ps_outputs),ps_reg)
         loss += ps_reg
 
 
@@ -324,9 +322,9 @@ def trainps(network,inputs_ps,targets_ps,ps_optim,dropout=False):
     msefunc = torch.nn.MSELoss(reduction='mean')
 
     ps_reg = torch.tensor(0., requires_grad=True).to(network.device)
-    ps_reg += (logicps+sensoryps+motorps) * ps_optim.ps
+    ps_reg += (3.0-logicps+sensoryps+motorps) * ps_optim.ps
     #ps_reg += (sensoryps) * ps_optim.ps
-    loss = -msefunc(torch.mean(ps_outputs),ps_reg)
+    loss = msefunc(torch.mean(ps_outputs),ps_reg)
 
     #l2loss = torch.tensor(0., requires_grad=True).to(network.device)
     #for name, param in network.named_parameters():
