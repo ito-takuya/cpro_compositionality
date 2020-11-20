@@ -25,6 +25,7 @@ datadir = '../../data/'
 parser = argparse.ArgumentParser('./main.py', description='Run a set of simulations/models')
 parser.add_argument('--nsimulations', type=int, default=20, help='number of models/simulations to run')
 parser.add_argument('--pretraining', action='store_true', help="pretrain network on 1 rule tasks")
+parser.add_argument('--rule2pretraining', action='store_true', help="pretrain network on 2 rule tasks")
 parser.add_argument('--nonegation', action='store_true', help="do not use negations of 1 rule tasks")
 parser.add_argument('--nepochs', type=int, default=100, help='number of epochs to run on practiced data')
 parser.add_argument('--optimizer', type=str, default='adam', help='default optimizer to train on practiced tasks (DEFAULT: adam')
@@ -56,6 +57,7 @@ def run(args):
     save = args.save
     batchname = args.batchname
     pretraining = args.pretraining
+    rule2pretraining = args.rule2pretraining
     cuda = args.cuda
     verbose = args.verbose
 
@@ -71,6 +73,9 @@ def run(args):
     save_model = save_model + '_' + str(int(num_layers)) + 'layers'
     if pretraining:
         save_model = save_model + '_pretraining'
+
+    if rule2pretraining:
+        save_model = save_model + '_2rulepretraining'
 
     if nonegation:
         save_model = save_model + '_nonegation'
@@ -249,7 +254,8 @@ def run(args):
             #if verbose: print('** TRAINING ON', n_practiced_tasks, 'PRACTICED TASKS ** ... simulation', sim, ' |', modelname, '| cuda:', cuda)
             network, acc = trainANN.train(experiment,si_c=si_c,n_epochs=n_epochs,datadir=datadir,practice=practice,optimizer=optimizer,
                                           num_hidden=num_hidden,num_hidden_layers=num_layers,learning_rate=learning_rate,save=save,
-                                          save_model=outputdir+modelname+'.pt',verbose=False,lossfunc='CrossEntropy',pretraining=pretraining,device=device)
+                                          save_model=outputdir+modelname+'.pt',verbose=False,lossfunc='CrossEntropy',
+                                          pretraining=pretraining,rule2pretraining=rule2pretraining,device=device)
         
 
             network.eval()
