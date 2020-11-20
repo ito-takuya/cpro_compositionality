@@ -79,15 +79,47 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         ps_object.inputs_ps = taskcontext_inputs
         #### Now optimize for ps 
         loss_ps = 1
+        loss1= 1
         ## If there's the negative equivalent of the sensorimotor task, then make sure it trains loss
-        #count = 0
-        #while loss_ps>0.5: 
+        count = 0
+        #while loss1>0.01: 
+        while loss1>-10000: 
 
-        #    #### Logical sensory task pretraining
-        #    outputs, targets, loss1, logicps, sensoryps, motorps = mod.trainps(network,taskcontext_inputs,targets_ps,ps_object,dropout=False)
-        #    loss_ps = (1.0-logicps) + (1.0-motorps) + sensoryps
-        #    if count%50==0: print('Logic ps:', logicps, 'Motor ps:', motorps, 'Sensory ps:', sensoryps,'| regular loss:', loss1)
-        #    count += 1
+
+            #### Logical sensory task pretraining
+            outputs, targets, loss1, logicps, sensoryps, motorps = mod.trainps(network,taskcontext_inputs,targets_ps,ps_object,dropout=False)
+            loss_ps = (1.0-logicps) + (1.0-motorps) #+ sensoryps
+            l2loss = torch.tensor(0., requires_grad=True).to(network.device)
+            for name, param in network.named_parameters():
+                if 'weight' in name:
+                    l2loss += param.norm(2)*0.1 + .5
+            print('Logic ps:', logicps, 'Motor ps:', motorps, 'Sensory ps:', sensoryps,'| regular loss:', loss1, 'l2norm:', l2loss.detach().item())
+            count += 1
+
+
+
+#        networks = []
+#        logicscore = []
+#        sensoryscore = []
+#        motorscore = []
+#        for i in range(1000):
+#            network = mod.ANN(num_rule_inputs=num_rule_inputs,
+#                                 si_c=si_c,
+#                                 num_sensory_inputs=16,
+#                                 num_hidden_layers=num_hidden_layers,
+#                                 num_hidden=num_hidden,
+#                                 num_motor_decision_outputs=6,
+#                                 learning_rate=learning_rate,
+#                                 lossfunc=lossfunc,device=device)
+#
+#            logicps, sensoryps, motorps = mod.trainps(network,taskcontext_inputs,targets_ps,ps_object,dropout=False)
+#            networks.append(network)
+#            logicscore.append(logicps)
+#            sensoryscore.append(sensoryps)
+#            motorscore.append(motorps)
+
+
+
     else:
         ps_object = None
 
@@ -211,16 +243,17 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
                 np.random.shuffle(order)
                 for t in order:
 
+                    ps_optim = None
                     if ps_optim is not None:
                         outputs, targets, loss, logicps, sensoryps, motorps = mod.train(network,
                                                                                          experiment.prac_inputs[t,:,:],
                                                                                          experiment.prac_targets[t,:],
-                                                                                         si=W,ps_optim=ps_object,dropout=True)
+                                                                                         si=W,ps_optim=ps_optim,dropout=True)
                     else:
                         outputs, targets, loss = mod.train(network,
                                                            experiment.prac_inputs[t,:,:],
                                                            experiment.prac_targets[t,:],
-                                                           si=W,ps_optim=ps_object,dropout=True)
+                                                           si=W,ps_optim=None,dropout=True)
                     
                     acc.append(mod.accuracyScore(network,outputs,targets)*100.0)
 

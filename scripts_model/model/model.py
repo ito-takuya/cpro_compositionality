@@ -54,7 +54,7 @@ class ANN(torch.nn.Module):
         # Create weights for PS training
         self.w_ps = torch.nn.Linear(num_hidden, 1)
         with torch.no_grad():
-            self.w_ps.weight.copy_(torch.ones(1,num_hidden))
+            self.w_ps.weight.copy_(-torch.ones(1,num_hidden))# negative since we want to maximize PS
 
         self.dropout_in = torch.nn.Dropout(p=0.2)
         self.dropout_rec = torch.nn.Dropout(p=0.5)
@@ -286,24 +286,24 @@ def train(network, inputs, targets, si=True, ps_optim=None, dropout=False):
         return outputs, targets, loss.item()
     #return outputs, targets, ps_reg 
 
+#def trainps(network,inputs_ps,targets_ps,ps_optim,dropout=False):
+#    """Train network"""
+#
+#
+#    ps_outputs, hidden = network.forward_ps(ps_optim.inputs_ps,noise=True,dropout=dropout)
+#    ps = calculatePS(hidden,ps_optim.match_logic_ind)
+#    logicps = ps # Want to maximize
+#    # Sensory PS
+#    ps = calculatePS(hidden,ps_optim.match_sensory_ind)
+#    sensoryps = ps
+#    # Motor PS
+#    ps = calculatePS(hidden,ps_optim.match_motor_ind)
+#    motorps = ps
+#
+#    return logicps, sensoryps, motorps
+
+
 def trainps(network,inputs_ps,targets_ps,ps_optim,dropout=False):
-    """Train network"""
-
-
-    ps_outputs, hidden = network.forward_ps(ps_optim.inputs_ps,noise=True,dropout=dropout)
-    ps = calculatePS(hidden,ps_optim.match_logic_ind)
-    logicps = ps # Want to maximize
-    # Sensory PS
-    ps = calculatePS(hidden,ps_optim.match_sensory_ind)
-    sensoryps = ps
-    # Motor PS
-    ps = calculatePS(hidden,ps_optim.match_motor_ind)
-    motorps = ps
-
-    return logicps, sensoryps, motorps
-
-
-def trainps_orig(network,inputs_ps,targets_ps,ps_optim,dropout=False):
     """Train network"""
 
     network.train()
@@ -324,17 +324,16 @@ def trainps_orig(network,inputs_ps,targets_ps,ps_optim,dropout=False):
     msefunc = torch.nn.MSELoss(reduction='mean')
 
     ps_reg = torch.tensor(0., requires_grad=True).to(network.device)
-    ps_reg += (logicps) * ps_optim.ps
-    loss = msefunc(torch.mean(ps_outputs),ps_reg)
+    ps_reg += (logicps+sensoryps+motorps) * ps_optim.ps
+    #ps_reg += (sensoryps) * ps_optim.ps
+    loss = -msefunc(torch.mean(ps_outputs),ps_reg)
 
-    #ps_loss = (1.0-logicps) + (1.0-motorps)
-    ##ps_loss = np.abs(sensoryps)
-
-    #ps_reg = torch.tensor(0., requires_grad=True).to(network.device)
+    #l2loss = torch.tensor(0., requires_grad=True).to(network.device)
     #for name, param in network.named_parameters():
     #    if 'weight' in name:
-    #        ps_reg += (param.norm(2) + ps_loss) * ps_optim.ps
-    #loss += ps_reg
+    #        l2loss += param.norm(2)*0.1 + .5
+    ##loss += l2loss 
+    #loss = l2loss
     
     # Backprop and update weights
     loss.backward()
