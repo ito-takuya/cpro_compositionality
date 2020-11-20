@@ -151,7 +151,7 @@ def run(args):
         experiment.logic_pretraining_input = logic_pretraining_input
         experiment.logic_pretraining_output = logic_pretraining_output
 
-
+    if rule2pretraining:
         logicalsensory_pretraining_input, logicalsensory_pretraining_output = task.create_logicalsensory_pretraining()
         logicalsensory_pretraining_input = torch.from_numpy(logicalsensory_pretraining_input).float()
         logicalsensory_pretraining_output = torch.from_numpy(logicalsensory_pretraining_output).long()
