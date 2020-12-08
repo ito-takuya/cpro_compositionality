@@ -173,8 +173,8 @@ def run(args):
 
     ###########################################
     #### run simulations
-    for sim in range(10,20):
-    #for sim in range(nsimulations):
+    #for sim in range(5,10):
+    for sim in range(nsimulations):
 
         #########################################
         # Load or reload practiced and novel tasks (each simulation needs to refresh task data
