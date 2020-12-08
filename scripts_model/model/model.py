@@ -93,8 +93,9 @@ class ANN(torch.nn.Module):
         Run a forward pass of a trial by input_elements matrix
         """
         #Add noise to inputs
-        #if noise:
-        #    inputs = inputs + torch.randn(inputs.shape, device=self.device, dtype=torch.float)/5 #(self.num_sensory_inputs+self.num_rule_inputs)
+        if noise:
+            inputs = inputs + torch.randn(inputs.shape, device=self.device, dtype=torch.float)/6 #(self.num_sensory_inputs+self.num_rule_inputs)
+            #inputs = inputs + torch.randn(inputs.shape, device=self.device, dtype=torch.float)/(self.num_sensory_inputs+self.num_rule_inputs)
 
         # Map inputs into RNN space
         hidden = self.w_in(inputs) 
@@ -102,12 +103,12 @@ class ANN(torch.nn.Module):
         hidden = self.func(hidden)
         hidden1st = hidden
         # Define rnn private noise/spont_act
-        if noise:
-            spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)/self.num_hidden
+        #if noise:
+        #    spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)/self.num_hidden
         #    #spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)/5 #self.num_hidden
 #       #     spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)
         #    # Add private noise to each unit, and add to the input
-            hidden = hidden + spont_act
+        #    hidden = hidden + spont_act
 
         # Run RNN
         if self.num_hidden_layers>1:
@@ -227,7 +228,7 @@ def train(network, inputs, targets, si=True, ps_optim=None, dropout=False):
     network.optimizer.zero_grad()
 
 
-    outputs, hidden = network.forward(inputs,noise=True,dropout=dropout)
+    outputs, hidden = network.forward(inputs,noise=False,dropout=dropout)
 
     # Calculate loss
     if isinstance(network.lossfunc,torch.nn.CrossEntropyLoss):

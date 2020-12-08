@@ -173,8 +173,8 @@ def run(args):
 
     ###########################################
     #### run simulations
-    #for sim in range(18,20):
-    for sim in range(nsimulations):
+    for sim in range(10,20):
+    #for sim in range(nsimulations):
 
         #########################################
         # Load or reload practiced and novel tasks (each simulation needs to refresh task data
@@ -252,7 +252,7 @@ def run(args):
             
             #### Save accuracies by task
             for i in range(len(experiment.practicedRuleSet)):
-                outputs, hidden = network.forward(experiment.prac_inputs[i,:,:],noise=False)
+                outputs, hidden = network.forward(experiment.prac_inputs[i,:,:],noise=True)
                 outputs[:,4:] = 0
                 acc = mod.accuracyScore(network,outputs,experiment.prac_targets[i,:])
                 df_pertask['Accuracy'].append(acc)
@@ -264,7 +264,7 @@ def run(args):
 
             novel_acc = []
             for i in range(len(experiment.novelRuleSet)):
-                outputs, hidden = network.forward(experiment.novel_inputs[i,:,:],noise=False)
+                outputs, hidden = network.forward(experiment.novel_inputs[i,:,:],noise=True)
                 outputs[:,4:] = 0
                 acc = mod.accuracyScore(network,outputs,experiment.novel_targets[i,:])
                 novel_acc.append(acc)
