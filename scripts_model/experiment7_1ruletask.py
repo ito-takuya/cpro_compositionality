@@ -173,7 +173,7 @@ def run(args):
 
     ###########################################
     #### run simulations
-    #for sim in range(5,10):
+    #for sim in range(0,4):
     for sim in range(nsimulations):
 
         #########################################
