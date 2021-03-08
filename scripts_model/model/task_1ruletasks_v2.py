@@ -1003,34 +1003,99 @@ def _create_logictask_stimuli():
 
     stim_ind = np.arange(20) # 16 + 4 boolean stimulus combinations
 
-#    # Property index tells us which columns ID the property in question
-#    color = {0:'red',
-#             1:'blue'}
-#    orientation = {2:'vertical',
-#                   3:'horizontal'}
-#    pitch = {4:'high',
-#             5:'low'}
-#    constant = {6:'constant',
-#                7:'beeping'}
-#
+    # Property index tells us which columns ID the property in question
+    color = {0:'red',
+             1:'blue'}
+    orientation = {2:'vertical',
+                   3:'horizontal'}
+    pitch = {4:'high',
+             5:'low'}
+    constant = {6:'constant',
+                7:'beeping'}
+
 
     booleans = {16:True,
                 17:False}
 
-    for stim1 in booleans:
-        for stim2 in booleans:
+#    for stim1 in booleans:
+#        for stim2 in booleans:
+#            code = np.zeros((len(stim_ind),))
+#            # Stim 1
+#            code[stim1] = 1
+#            code[stim2+2] = 1
+#
+#            # Code
+#            stimdata['Code'].append(list(code))
+#
+#            ## Logical evaluation
+#            if booleans[stim1]*booleans[stim2]==1:
+#                stimdata['BOOL'].append('AND')
+#            if booleans[stim1] or booleans[stim2]: 
+#                stimdata['BOOL'].append('OR')
+
+
+    for col1 in color:
+        for col2 in color:
             code = np.zeros((len(stim_ind),))
             # Stim 1
-            code[stim1] = 1
-            code[stim2+2] = 1
+            code[col1] = 1
+            code[col2+8] = 1
 
             # Code
             stimdata['Code'].append(list(code))
 
             ## Logical evaluation
-            if booleans[stim1]*booleans[stim2]==1:
+            if col1==col2:
                 stimdata['BOOL'].append('AND')
-            if booleans[stim1] or booleans[stim2]: 
+            else:
+                stimdata['BOOL'].append('OR')
+
+    for ori1 in orientation:
+        for ori2 in orientation:
+            code = np.zeros((len(stim_ind),))
+            # Stim 1
+            code[ori1] = 1
+            code[ori2+8] = 1
+
+            # Code
+            stimdata['Code'].append(list(code))
+
+            ## Logical evaluation
+            if ori1==ori2:
+                stimdata['BOOL'].append('AND')
+            else:
+                stimdata['BOOL'].append('OR')
+
+    for pit1 in pitch:
+        for pit2 in pitch:
+            code = np.zeros((len(stim_ind),))
+            # Stim 1
+            code[pit1] = 1
+            code[pit2+8] = 1
+
+            # Code
+            stimdata['Code'].append(list(code))
+
+            ## Logical evaluation
+            if pit1==pit2:
+                stimdata['BOOL'].append('AND')
+            else:
+                stimdata['BOOL'].append('OR')
+
+    for con1 in constant:
+        for con2 in constant:
+            code = np.zeros((len(stim_ind),))
+            # Stim 1
+            code[con1] = 1
+            code[con2+8] = 1
+
+            # Code
+            stimdata['Code'].append(list(code))
+
+            ## Logical evaluation
+            if con1==con2:
+                stimdata['BOOL'].append('AND')
+            else:
                 stimdata['BOOL'].append('OR')
     
     return pd.DataFrame(stimdata) 
