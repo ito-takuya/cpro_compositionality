@@ -252,7 +252,7 @@ def train(network, inputs, targets, si=True, ps_optim=None, dropout=False):
 
     ### PS regularization
     if ps_optim is not None:
-        ps_outputs, hidden = network.forward(ps_optim.inputs_ps,noise=True,dropout=False)
+        ps_outputs, hidden = network.forward(ps_optim.inputs_ps,noise=False,dropout=False)
         ps = calculatePS(hidden,ps_optim.match_logic_ind)
         logicps = ps # Want to maximize
         # Sensory PS
