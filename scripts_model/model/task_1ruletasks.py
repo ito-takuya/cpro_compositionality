@@ -894,6 +894,7 @@ def create_motor_pretraining(negation=True):
     #input_matrix = np.asarray(input_matrix)
     #output_matrix = np.asarray(output_matrix)
 
+    # Use a subset of stimuli
     stimuliSet = _create_sensorytask_stimuli()
     taskRuleSet = _create_motor_pretraining_rules(negation=negation)
 
