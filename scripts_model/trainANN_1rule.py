@@ -54,6 +54,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         W = None
 
 
+    pretraining_trials = 0
     if pretraining:
         logic_pretraining_input = experiment.logic_pretraining_input
         logic_pretraining_output= experiment.logic_pretraining_output
@@ -71,8 +72,14 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         loss4 = 1
         loss5 = 1
         count = 0
-        lossmagnitude = 0.001
-        while loss1>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude:
+        lossmagnitude = 0.0001
+        #lossmagnitude = 0.001
+        accuracy1 = 0
+        accuracy2 = 0
+        accuracy3 = 0
+        pretraining_acc = 99.0
+        #while loss1>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude:
+        while accuracy1<pretraining_acc or accuracy2<pretraining_acc or accuracy3<pretraining_acc:
 
             #### Logic task pretraining
             outputs, targets, loss1 = mod.train(network,
@@ -80,20 +87,24 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
                                                logic_pretraining_output,
                                                si=W,dropout=True)
 
-            #accuracy1 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
+            pretraining_trials += len(outputs)
+            accuracy1 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
             outputs, targets, loss2 = mod.train(network,
                                                sensory_pretraining_input,
                                                sensory_pretraining_output,
                                                si=W,dropout=True)
 
-            #accuracy2 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
+            pretraining_trials += len(outputs)
+            accuracy2 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
             outputs, targets, loss3 = mod.train(network,
                                                motor_pretraining_input,
                                                motor_pretraining_output,
                                                si=W,dropout=True)
 
+            pretraining_trials += len(outputs)
+            accuracy3 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
             count += 1
 
@@ -106,18 +117,29 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         loss4 = 1
         loss5 = 1
         count = 0
-        lossmagnitude = 0.001
-        while loss4>lossmagnitude or loss5>lossmagnitude:
+        lossmagnitude = 0.0001
+        #lossmagnitude = 0.001
+        # accuracy-based training
+        accuracy4 = 0
+        accuracy5 = 0
+        pretraining_acc = 99.0
+        while accuracy4<pretraining_acc or accuracy5>pretraining_acc:
 
             outputs, targets, loss4 = mod.train(network,
                                                experiment.logicalsensory_pretraining_input,
                                                experiment.logicalsensory_pretraining_output,
                                                si=W,dropout=True)
+
+            pretraining_trials += len(outputs)
+            accuracy4 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 #
             outputs, targets, loss5 = mod.train(network,
                                                experiment.sensorimotor_pretraining_input,
                                                experiment.sensorimotor_pretraining_output,
                                                si=W,dropout=True)
+            
+            pretraining_trials += len(outputs)
+            accuracy5 = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
             #if count%20==0: print('loss4', loss4,'loss5',loss5)
 
@@ -130,7 +152,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
 
     ###### 
     accuracy = 0
-    online_accuracy=[]
+    num_trials = 0
     if practice:
         if optimizer =='sgd':
             network.optimizer = torch.optim.SGD(network.parameters(), lr=0.01,momentum=0.9)
@@ -160,10 +182,12 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
                                                        experiment.prac_inputs[t,:,:],
                                                        experiment.prac_targets[t,:],
                                                        si=W,dropout=True)
+                    num_trials += len(outputs)
+
 
                     acc.append(mod.accuracyScore(network,outputs,targets)*100.0)
                 
-                accuracy_prac = np.sum(np.asarray(acc)>acc_cutoff)
+            #    accuracy_prac = np.sum(np.asarray(acc)>acc_cutoff)
 
                 #outputs, targets, loss = mod.train(network,
                 #                                   prac_input2d,
@@ -171,12 +195,13 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
                 #                                   si=W,dropout=True)
                 #accuracy_prac = mod.accuracyScore(network,outputs,targets)*100.0
 
-                accuracy_prac = np.sum(np.asarray(acc)>acc_cutoff)
+            #    accuracy_prac = np.sum(np.asarray(acc)>acc_cutoff)
 
             print('\tTraining on practiced tasks exits with:', np.mean(np.asarray(acc)),'% after', n_epochs, 'epochs')
 
         else:
 
+            i_epochs = 0
             while accuracy_prac < experiment.prac_inputs.shape[0]:
                 
                 acc = []
@@ -189,14 +214,19 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
                                                        experiment.prac_targets[t,:],
                                                        si=W,dropout=True)
 
+                    num_trials += len(outputs)
                     acc.append(mod.accuracyScore(network,outputs,targets)*100.0)
                 
                 accuracy_prac = np.sum(np.asarray(acc)>acc_cutoff)
+                i_epochs += 1
 
                 if verbose: 
                     if count%200==0:
                         print('**TRAINING**  iteration', count)
                         print('\tavg accuracy on practiced tasks:', np.mean(np.asarray(acc)), '|', np.sum(np.asarray(acc)>acc_cutoff))
+                count += 1
+            
+            print('\tTraining on practiced tasks exits with:', np.mean(np.asarray(acc)),'% after', i_epochs, 'epochs')
 
             #### GOOD OLD VERSION
             #outputs, targets, loss = mod.train(network,
@@ -210,12 +240,11 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
             #if loss<0.1:
             #accuracy_prac = np.mean(mod.accuracyScore(network,outputs,targets))*100.0
 
-                count += 1
 
     if save:
         if save_model is not None:
             torch.save(network,save_model)
 
-    return network, online_accuracy
+    return network, pretraining_trials, num_trials 
 
 

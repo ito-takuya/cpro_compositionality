@@ -235,6 +235,8 @@ def run(args):
         df_sim['LogicPS1'] = []
         df_sim['SensoryPS1'] = []
         df_sim['MotorPS1'] = []
+        df_sim['NumPretrainingTrials'] = []
+        df_sim['NumActualTrials'] = []
 
         df_pertask = {}
         df_pertask['Accuracy'] = []
@@ -245,8 +247,8 @@ def run(args):
         df_pertask['NumPracticedTasks'] = []
 
         n_practiced_tasks = len(experiment.practicedRuleSet)
-        #while n_practiced_tasks < len(experiment.taskRuleSet):
-        while n_practiced_tasks < 5:
+        while n_practiced_tasks < len(experiment.taskRuleSet):
+#        while n_practiced_tasks < 5:
             modelname = save_model + str(sim)
 
             #### Create conditional such that if practice==False, then don't train on any practiced tasks an exit immediately
@@ -254,17 +256,18 @@ def run(args):
                 n_practiced_tasks = 0
 
             #if verbose: print('** TRAINING ON', n_practiced_tasks, 'PRACTICED TASKS ** ... simulation', sim, ' |', modelname, '| cuda:', cuda)
-            network, acc = trainANN.train(experiment,si_c=si_c,n_epochs=n_epochs,datadir=datadir,practice=practice,optimizer=optimizer,acc_cutoff=acc_cutoff,
-                                          num_hidden=num_hidden,num_hidden_layers=num_layers,learning_rate=learning_rate,save=save,
-                                          save_model=outputdir+modelname+'.pt',verbose=False,lossfunc='CrossEntropy',
-                                          pretraining=pretraining,rule2pretraining=rule2pretraining,device=device)
+            network, pretraining_trials, num_trials = trainANN.train(experiment,si_c=si_c,n_epochs=n_epochs,datadir=datadir,practice=practice,
+                                                                    optimizer=optimizer,acc_cutoff=acc_cutoff,
+                                                                    num_hidden=num_hidden,num_hidden_layers=num_layers,learning_rate=learning_rate,save=save,
+                                                                    save_model=outputdir+modelname+'.pt',verbose=False,lossfunc='CrossEntropy',
+                                                                    pretraining=pretraining,rule2pretraining=rule2pretraining,device=device)
         
 
             network.eval()
             
             #### Save accuracies by task
             for i in range(len(experiment.practicedRuleSet)):
-                outputs, hidden = network.forward(experiment.prac_inputs[i,:,:],noise=True)
+                outputs, hidden = network.forward(experiment.prac_inputs[i,:,:],noise=False,dropout=False)
                 outputs[:,4:] = 0
                 acc = mod.accuracyScore(network,outputs,experiment.prac_targets[i,:])
                 df_pertask['Accuracy'].append(acc)
@@ -276,7 +279,7 @@ def run(args):
 
             novel_acc = []
             for i in range(len(experiment.novelRuleSet)):
-                outputs, hidden = network.forward(experiment.novel_inputs[i,:,:],noise=True)
+                outputs, hidden = network.forward(experiment.novel_inputs[i,:,:],noise=False,dropout=False)
                 outputs[:,4:] = 0
                 acc = mod.accuracyScore(network,outputs,experiment.novel_targets[i,:])
                 novel_acc.append(acc)
@@ -290,6 +293,7 @@ def run(args):
                 
             if verbose: 
                 print('Model:', modelname, '| Simulation', sim, ' | # of practiced tasks:', n_practiced_tasks, '| Acc on novel tasks:', np.mean(novel_acc))
+                print('\tPretraining trials:', pretraining_trials, '| Real trials:', num_trials, '| Total:', num_trials+pretraining_trials)
 
             # novel trial accuracy
             df_sim['Accuracy'].append(np.mean(novel_acc))
@@ -299,6 +303,9 @@ def run(args):
             #### response dimensionality - requires the task input/output set
             hidden, rsm_corr = analysis.rsa_behavior(network,full_inputs,full_targets,measure='corr')
             df_sim['ResponseDimensionality'].append(tools.dimensionality(rsm_corr))
+            # Number of trials exposed to network
+            df_sim['NumPretrainingTrials'].append(pretraining_trials)
+            df_sim['NumActualTrials'].append(num_trials)
 
             #### Update and transfer novel task to practiced tasks
             practicedRuleSet, novelRuleSet, nov2prac_ind = experiment.addPracticedTasks(n=1) # Add a random novel task to the practiced set
