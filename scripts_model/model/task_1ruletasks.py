@@ -894,7 +894,7 @@ def create_motor_pretraining(negation=True):
     #input_matrix = np.asarray(input_matrix)
     #output_matrix = np.asarray(output_matrix)
 
-    stimuliSet = createSensoryInputs()
+    stimuliSet = _create_sensorytask_stimuli()
     taskRuleSet = _create_motor_pretraining_rules(negation=negation)
 
     # Create 1d array to randomly sample indices from
@@ -910,18 +910,19 @@ def create_motor_pretraining(negation=True):
     output_matrix = []
     for tasknum in range(len(taskRuleSet)):
         
-        input_arr = np.zeros((input_size,))
+        for i in stimuliSet.index:
+            input_arr = np.zeros((input_size,))
 
-        ## Create trial array -- 1st stim
-        # Find input code for this task set
-        input_arr[rule_ind] = taskRuleSet.Code[tasknum] 
-        #
-        #input_arr[stim_ind] = stimuliSet.Code[i]
-        input_matrix.append(input_arr)
+            ## Create trial array -- 1st stim
+            # Find input code for this task set
+            input_arr[rule_ind] = taskRuleSet.Code[tasknum] 
+            #
+            input_arr[stim_ind] = stimuliSet.Code[i]
+            input_matrix.append(input_arr)
 
-        # Solve task to get the output code
-        tmpresp, out_code = _solve_motor_pretraining_task(taskRuleSet.iloc[tasknum],None)
-        output_matrix.append(np.where(out_code)[0][0])
+            # Solve task to get the output code
+            tmpresp, out_code = _solve_motor_pretraining_task(taskRuleSet.iloc[tasknum],stimuliSet.iloc[i])
+            output_matrix.append(np.where(out_code)[0][0])
 
     input_matrix = np.asarray(input_matrix)
     output_matrix = np.asarray(output_matrix)
