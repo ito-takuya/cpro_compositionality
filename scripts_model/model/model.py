@@ -94,7 +94,7 @@ class ANN(torch.nn.Module):
         """
         #Add noise to inputs
         if noise:
-            inputs = inputs + torch.randn(inputs.shape, device=self.device, dtype=torch.float)/6 #(self.num_sensory_inputs+self.num_rule_inputs)
+            inputs = inputs + torch.randn(inputs.shape, device=self.device, dtype=torch.float)/5 #(self.num_sensory_inputs+self.num_rule_inputs)
             #inputs = inputs + torch.randn(inputs.shape, device=self.device, dtype=torch.float)/(self.num_sensory_inputs+self.num_rule_inputs)
 
         # Map inputs into RNN space

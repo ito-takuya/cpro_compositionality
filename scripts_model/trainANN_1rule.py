@@ -77,7 +77,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         accuracy1 = 0
         accuracy2 = 0
         accuracy3 = 0
-        pretraining_acc = 100.0
+        pretraining_acc = 99.0
         #while loss1>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude:
         while accuracy1<pretraining_acc or accuracy2<pretraining_acc or accuracy3<pretraining_acc:
 
@@ -124,7 +124,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         # accuracy-based training
         accuracy4 = 0
         accuracy5 = 0
-        pretraining_acc = 100.0
+        pretraining_acc = 99.0
         while accuracy4<pretraining_acc or accuracy5>pretraining_acc:
 
             outputs, targets, loss4 = mod.train(network,
