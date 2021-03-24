@@ -44,20 +44,27 @@ class ANN(torch.nn.Module):
         
         # Define entwork architectural parameters
         super(ANN,self).__init__()
-
+        
         self.w_in = torch.nn.Linear(num_sensory_inputs+num_rule_inputs,num_hidden)
-        self.w_hid = torch.nn.Linear(num_hidden,num_hidden)
         self.w_out = torch.nn.Linear(num_hidden,num_motor_decision_outputs)
-        #self.func_out = torch.nn.Softmax(dim=1)
-        #self.func_out1d = torch.nn.Softmax(dim=0) # used for online learning (since only one trial is trained at a time)
         self.func = torch.nn.ReLU()
-        # Create weights for PS training
         self.w_ps = torch.nn.Linear(num_hidden, 1)
+        # Create weights for PS training
         with torch.no_grad():
             self.w_ps.weight.copy_(torch.ones(1,num_hidden))
 
         self.dropout_in = torch.nn.Dropout(p=0.2)
         self.dropout_rec = torch.nn.Dropout(p=0.5)
+        #self.func_out = torch.nn.Softmax(dim=1)
+        #self.func_out1d = torch.nn.Softmax(dim=0) # used for online learning (since only one trial is trained at a time)
+
+        if num_hidden_layers>1:
+            # use this to create an arbitrary number of hidden-hidden networks (e.g., excluding first and final hidden layerss)
+            self.w_hid = torch.nn.ModuleList([torch.nn.Sequential(torch.nn.Linear(num_hidden,num_hidden),torch.nn.ReLU()) for i in range(num_hidden_layers-1)])
+        #    for i in range(num_hidden_layers-1):
+        #        self.w_hid.append(torch.nn.Sequential(torch.nn.Linear(num_hidden, num_hidden),torch.nn.ReLU()))
+        #else:
+        #    self.w_hid = torch.nn.Linear(num_hidden,num_hidden)
 
         # Initialize RNN units
         self.units = torch.nn.Parameter(self.initHidden())
@@ -88,7 +95,7 @@ class ANN(torch.nn.Module):
     def initHidden(self):
         return torch.randn(1, self.num_hidden)
 
-    def forward(self,inputs,noise=False,dropout=True,return1st=False):
+    def forward(self,inputs,noise=False,dropout=True):
         """
         Run a forward pass of a trial by input_elements matrix
         """
@@ -97,25 +104,25 @@ class ANN(torch.nn.Module):
             inputs = inputs + torch.randn(inputs.shape, device=self.device, dtype=torch.float)/5 #(self.num_sensory_inputs+self.num_rule_inputs)
             #inputs = inputs + torch.randn(inputs.shape, device=self.device, dtype=torch.float)/(self.num_sensory_inputs+self.num_rule_inputs)
 
-        # Map inputs into RNN space
+        hidden_activations = []
+
         hidden = self.w_in(inputs) 
         if dropout: hidden = self.dropout_in(hidden)
         hidden = self.func(hidden)
-        hidden1st = hidden
-        # Define rnn private noise/spont_act
-        #if noise:
-        #    spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)/self.num_hidden
-        #    #spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)/5 #self.num_hidden
-#       #     spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)
-        #    # Add private noise to each unit, and add to the input
-        #    hidden = hidden + spont_act
+        hidden_activations.append(hidden)
 
         # Run RNN
         if self.num_hidden_layers>1:
-            for i in range(self.num_hidden_layers-1):
+            if type(self.w_hid)==torch.nn.modules.container.ModuleList:
+                for w in self.w_hid:
+                    hidden = w(hidden)
+                    if dropout: hidden = self.dropout_rec(hidden)
+                    hidden_activations.append(hidden)
+            else:
                 hidden = self.w_hid(hidden)
-                if dropout: hidden = self.dropout_rec(hidden)
                 hidden = self.func(hidden)
+                if dropout: hidden = self.dropout_rec(hidden)
+                hidden_activations.append(hidden)
         
         # Compute outputs
         h2o = self.w_out(hidden) # Generate linear outupts
@@ -125,100 +132,7 @@ class ANN(torch.nn.Module):
         #else:
         #    outputs = self.func_out(h2o) # Pass through nonlinearity
 
-        if return1st:
-            return outputs, hidden, hidden1st
-        else:
-            return outputs, hidden
-
-
-    def forward_ps(self,inputs,noise=False,dropout=True,return1st=False):
-        """
-        Run a forward pass of a trial by input_elements matrix
-        """
-        #Add noise to inputs
-        #if noise:
-        #    inputs = inputs + torch.randn(inputs.shape, device=self.device, dtype=torch.float)/5 #(self.num_sensory_inputs+self.num_rule_inputs)
-
-        # Map inputs into RNN space
-        hidden = self.w_in(inputs) 
-        if dropout: hidden = self.dropout_in(hidden)
-        hidden = self.func(hidden)
-        hidden1st = hidden
-        # Define rnn private noise/spont_act
-        if noise:
-            spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)/self.num_hidden
-        #    #spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)/5 #self.num_hidden
-#       #     spont_act = torch.randn(hidden.shape, device=self.device,dtype=torch.float)
-        #    # Add private noise to each unit, and add to the input
-            hidden = hidden + spont_act
-
-        # Run RNN
-        if self.num_hidden_layers>1:
-            for i in range(self.num_hidden_layers-1):
-                hidden = self.w_hid(hidden)
-                if dropout: hidden = self.dropout_rec(hidden)
-                hidden = self.func(hidden)
-        
-        # Compute outputs
-        h2o = self.w_out(hidden) # Generate linear outupts
-        outputs = self.w_ps(hidden) # Generate linear outupts
-        #if h2o.dim()==1: # for online learning
-        #    outputs = self.func_out1d(h2o)
-        #else:
-        #    outputs = self.func_out(h2o) # Pass through nonlinearity
-
-        if return1st:
-            return outputs, hidden, hidden1st
-        else:
-            return outputs, hidden
-
-    def update_omega(self, W, epsilon):
-        '''After completing training on a task, update the per-parameter regularization strength.
-
-        [W]         <dict> estimated parameter-specific contribution to changes in total loss of completed task
-        [epsilon]   <float> dampening parameter (to bound [omega] when [p_change] goes to 0)'''
-
-        # Loop over all parameters
-        for n, p in self.named_parameters():
-            if p.requires_grad:
-                n = n.replace('.', '__')
-
-                # Find/calculate new values for quadratic penalty on parameters
-                p_prev = getattr(self, '{}_SI_prev_task'.format(n))
-                p_current = p.detach().clone()
-                p_change = p_current - p_prev
-                omega_add = W[n]/(p_change**2 + epsilon)
-                try:
-                    omega = getattr(self, '{}_SI_omega'.format(n))
-                except AttributeError:
-                    omega = p.detach().clone().zero_()
-                omega_new = omega + omega_add
-
-                # Store initial tensors in state dict
-                #self.register_buffer('{}_SI_prev_task'.format(n), p_current) ### Originally this was not commented out
-                self.register_buffer('{}_SI_omega'.format(n), omega_new)
-
-
-    def surrogate_loss(self):
-        '''Calculate SI's surrogate loss.'''
-        try:
-            losses = []
-            for n, p in self.named_parameters():
-                if p.requires_grad:
-                    # Retrieve previous parameter values and their normalized path integral (i.e., omega)
-                    n = n.replace('.', '__')
-                    prev_values = getattr(self, '{}_SI_prev_task'.format(n))
-                    omega = getattr(self, '{}_SI_omega'.format(n))
-                    # Calculate SI's surrogate loss, sum over all parameters
-                    losses.append((omega * (p-prev_values)**2).sum())
-
-                    ##### New -- update previous p AFTER surrogate loss is computed
-                    self.register_buffer('{}_SI_prev_task'.format(n), p.detach().clone())
-                    ##### EDIT finished
-            return sum(losses)
-        except AttributeError:
-            # SI-loss is 0 if there is no stored omega yet
-            return torch.tensor(0., device=self._device())
+        return outputs, hidden_activations
 
 def train(network, inputs, targets, si=True, ps_optim=None, dropout=False):
     """Train network"""
@@ -285,60 +199,6 @@ def train(network, inputs, targets, si=True, ps_optim=None, dropout=False):
         return outputs, targets, loss.item()
     #return outputs, targets, ps_reg 
 
-#def trainps(network,inputs_ps,targets_ps,ps_optim,dropout=False):
-#    """Train network"""
-#
-#
-#    ps_outputs, hidden = network.forward_ps(ps_optim.inputs_ps,noise=True,dropout=dropout)
-#    ps = calculatePS(hidden,ps_optim.match_logic_ind)
-#    logicps = ps # Want to maximize
-#    # Sensory PS
-#    ps = calculatePS(hidden,ps_optim.match_sensory_ind)
-#    sensoryps = ps
-#    # Motor PS
-#    ps = calculatePS(hidden,ps_optim.match_motor_ind)
-#    motorps = ps
-#
-#    return logicps, sensoryps, motorps
-
-
-def trainps(network,inputs_ps,targets_ps,ps_optim,dropout=False):
-    """Train network"""
-
-    network.train()
-    network.zero_grad()
-    network.optimizer.zero_grad()
-
-
-    ps_outputs, hidden = network.forward_ps(ps_optim.inputs_ps,noise=True,dropout=dropout)
-    ps = calculatePS(hidden,ps_optim.match_logic_ind)
-    logicps = ps # Want to maximize
-    # Sensory PS
-    ps = calculatePS(hidden,ps_optim.match_sensory_ind)
-    sensoryps = ps
-    # Motor PS
-    ps = calculatePS(hidden,ps_optim.match_motor_ind)
-    motorps = ps
-    #ps_reg = (logicps + sensoryps + motorps) * ps_optim.ps
-    msefunc = torch.nn.MSELoss(reduction='mean')
-
-    ps_reg = torch.tensor(0., requires_grad=True).to(network.device)
-    ps_reg += (3.0-logicps+sensoryps+motorps) * ps_optim.ps
-    #ps_reg += (sensoryps) * ps_optim.ps
-    loss = msefunc(torch.mean(ps_outputs),ps_reg)
-
-    #l2loss = torch.tensor(0., requires_grad=True).to(network.device)
-    #for name, param in network.named_parameters():
-    #    if 'weight' in name:
-    #        l2loss += param.norm(2)*0.1 + .5
-    ##loss += l2loss 
-    #loss = l2loss
-    
-    # Backprop and update weights
-    loss.backward()
-    network.optimizer.step() # Update parameters using optimizer
-
-    return ps_outputs, targets_ps, loss.item(), logicps, sensoryps, motorps
 
 def batch_training(network,train_inputs,train_outputs,acc_cutoff=99.5,si=True,
                      verbose=True):

@@ -1,4 +1,4 @@
-#### Experiment 5
+#### Experiment 9
 # for each simulation, incrementally train additional tasks (i.e., include more practiced tasks) and assess performance etc.
 # fix number of epochs of data trained on, rather than using an 'accuracy cut-off'
 # Calculate PS for each simulation
@@ -35,9 +35,9 @@ parser.add_argument('--acc_cutoff', type=int, default=95.0, help='stop training 
 parser.add_argument('--optimizer', type=str, default='adam', help='default optimizer to train on practiced tasks (DEFAULT: adam')
 parser.add_argument('--practice', action='store_true', help="Train on practiced tasks")
 parser.add_argument('--cuda', action='store_true', help="use gpu/cuda")
-parser.add_argument('--save_model', type=str, default="expt8", help='string name to output models (DEFAULT: ANN)')
+parser.add_argument('--save_model', type=str, default="expt9", help='string name to output models (DEFAULT: ANN)')
 parser.add_argument('--verbose', action='store_true', help='verbose')
-parser.add_argument('--num_layers', type=int, default=2, help="number of hidden layers (DEFAULT: 2")
+parser.add_argument('--num_layers', type=int, default=3, help="number of hidden layers (DEFAULT: 2")
 parser.add_argument('--num_hidden', type=int, default=128, help="number of units in hidden layers (DEFAULT: 128")
 parser.add_argument('--learning_rate', type=float, default=0.001, help="learning rate for pretraining sessions (DEFAULT: 0.001)")
 parser.add_argument('--save', action='store_true', help="save or don't save model")
@@ -69,7 +69,7 @@ def run(args):
     cuda = args.cuda
     verbose = args.verbose
 
-    outputdir = datadir + '/results/experiment8/'
+    outputdir = datadir + '/results/experiment9/'
 
     #save_model = save_model + '_' + batchname
     save_model = save_model + '_' + optimizer
@@ -247,8 +247,10 @@ def run(args):
         df_pertask['NumPracticedTasks'] = []
 
         n_practiced_tasks = len(experiment.practicedRuleSet)
-        while n_practiced_tasks < len(experiment.taskRuleSet):
-#        while n_practiced_tasks < 5:
+        #while n_practiced_tasks < len(experiment.taskRuleSet):
+        training_order = [4,8,12,16,20,24,28,32,36,40,44,48,52,56,60]
+        taskcount = 0
+        for n_practiced_tasks in training_order:
             modelname = save_model + str(sim)
 
             #### Create conditional such that if practice==False, then don't train on any practiced tasks an exit immediately
@@ -308,22 +310,27 @@ def run(args):
             df_sim['NumActualTrials'].append(num_trials)
 
             #### Update and transfer novel task to practiced tasks
-            practicedRuleSet, novelRuleSet, nov2prac_ind = experiment.addPracticedTasks(n=1) # Add a random novel task to the practiced set
-            nov2prac_ind = nov2prac_ind[0]
-            new_novel_ind = np.where(experiment.novelRuleSet.index!=nov2prac_ind)[0] 
-            experiment.practicedRuleSet = practicedRuleSet
-            experiment.novelRuleSet = novelRuleSet
-            #
-            experiment.prac_input2d = torch.cat((experiment.prac_input2d, experiment.novel_inputs[nov2prac_ind,:]),0)
-            experiment.prac_target2d = torch.cat((experiment.prac_target2d, experiment.novel_targets[nov2prac_ind,:]),0)
-            #
-            new_novel_input = experiment.novel_inputs[nov2prac_ind,:].unsqueeze(0) # add empty dimension to stack
-            new_novel_target = experiment.novel_targets[nov2prac_ind,:].unsqueeze(0) # add empty dimension to stack
-            experiment.prac_inputs = torch.cat((experiment.prac_inputs, new_novel_input),0)
-            experiment.prac_targets = torch.cat((experiment.prac_targets, new_novel_target),0)
-            #
-            experiment.novel_inputs = experiment.novel_inputs[new_novel_ind,:,:]
-            experiment.novel_targets = experiment.novel_targets[new_novel_ind,:]
+            # Update as long as there's a next iteration of for loop
+            if taskcount+1<len(training_order):
+                next_taskcount = training_order[taskcount + 1]
+                n_add_practicedtasks = next_taskcount - n_practiced_tasks
+                for i in range(n_add_practicedtasks):
+                    practicedRuleSet, novelRuleSet, nov2prac_ind = experiment.addPracticedTasks(n=1) # Add a random novel task to the practiced set
+                    nov2prac_ind = nov2prac_ind[0]
+                    new_novel_ind = np.where(experiment.novelRuleSet.index!=nov2prac_ind)[0] 
+                    experiment.practicedRuleSet = practicedRuleSet
+                    experiment.novelRuleSet = novelRuleSet
+                    #
+                    experiment.prac_input2d = torch.cat((experiment.prac_input2d, experiment.novel_inputs[nov2prac_ind,:]),0)
+                    experiment.prac_target2d = torch.cat((experiment.prac_target2d, experiment.novel_targets[nov2prac_ind,:]),0)
+                    #
+                    new_novel_input = experiment.novel_inputs[nov2prac_ind,:].unsqueeze(0) # add empty dimension to stack
+                    new_novel_target = experiment.novel_targets[nov2prac_ind,:].unsqueeze(0) # add empty dimension to stack
+                    experiment.prac_inputs = torch.cat((experiment.prac_inputs, new_novel_input),0)
+                    experiment.prac_targets = torch.cat((experiment.prac_targets, new_novel_target),0)
+                    #
+                    experiment.novel_inputs = experiment.novel_inputs[new_novel_ind,:,:]
+                    experiment.novel_targets = experiment.novel_targets[new_novel_ind,:]
 
 
             #### Compute PS scores for each rule dimension
@@ -373,7 +380,8 @@ def run(args):
                 break
 
 
-            n_practiced_tasks += 1
+            #n_practiced_tasks += 1
+            taskcount += 1
 
 
         df_sim = pd.DataFrame(df_sim) 

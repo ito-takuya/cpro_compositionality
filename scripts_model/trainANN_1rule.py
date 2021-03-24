@@ -3,7 +3,7 @@ import model.task as task
 np.set_printoptions(suppress=True)
 import os
 
-import model.model as mod
+import model.model_v2 as mod
 import time
 from importlib import reload
 mod = reload(mod)
@@ -18,7 +18,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
           num_rule_inputs=11,num_sensory_inputs=16,num_hidden=128,num_hidden_layers=2,learning_rate=0.0001,
           acc_cutoff=95.0,n_epochs=None,optimizer='adam',
           save_model=None,verbose=True,save=True,
-          lossfunc='MSE',pretraining=False,rule2pretraining=False,device='cpu'):
+          lossfunc='MSE',pretraining=False,rule2pretraining=False,pretraining_acc=99.0,device='cpu'):
     """
     'online training model'
     num_hidden - # of hidden units
@@ -77,7 +77,7 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         accuracy1 = 0
         accuracy2 = 0
         accuracy3 = 0
-        pretraining_acc = 99.0
+        accuracy_condition = False
         #while loss1>lossmagnitude or loss2>lossmagnitude or loss3>lossmagnitude:
         while accuracy1<pretraining_acc or accuracy2<pretraining_acc or accuracy3<pretraining_acc:
 
@@ -124,7 +124,6 @@ def train(experiment,si_c=0,datadir=datadir,practice=True,
         # accuracy-based training
         accuracy4 = 0
         accuracy5 = 0
-        pretraining_acc = 99.0
         while accuracy4<pretraining_acc or accuracy5>pretraining_acc:
 
             outputs, targets, loss4 = mod.train(network,
