@@ -6,7 +6,7 @@ import torch
 import numpy as np
 from torch.autograd import Variable
 import torch.nn.functional as F
-import model.task as task
+import model.task_1ruletasks as task
 import multiprocessing as mp
 import h5py
 from importlib import reload

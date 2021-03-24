@@ -6,11 +6,9 @@ import torch
 import numpy as np
 from torch.autograd import Variable
 import torch.nn.functional as F
-import model.task as task
 import multiprocessing as mp
 import h5py
 from importlib import reload
-task = reload(task)
 np.set_printoptions(suppress=True)
 import time
 
