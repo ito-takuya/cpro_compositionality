@@ -31,6 +31,7 @@ parser.add_argument('--simstart', type=int, default=0, help='start of simulation
 parser.add_argument('--pretraining', action='store_true', help="pretrain network on 1 rule tasks")
 parser.add_argument('--rule2pretraining', action='store_true', help="pretrain network on 2 rule tasks")
 parser.add_argument('--nonegation', action='store_true', help="do not use negations of 1 rule tasks")
+parser.add_argument('--practice', action='store_true', help="Train on practiced tasks")
 parser.add_argument('--optimizer', type=str, default='adam', help='default optimizer to train on practiced tasks (DEFAULT: adam')
 parser.add_argument('--cuda', action='store_true', help="use gpu/cuda")
 parser.add_argument('--save_model', type=str, default="expt10", help='string name to output models (DEFAULT: ANN)')
@@ -48,12 +49,12 @@ def run(args):
     nsimulations = args.nsimulations
     simstart = args.simstart
     si_c = args.si_c
-    practice = False # Set for experiment 10 only
+    practice = args.practice 
     nonegation = args.nonegation
     negation = True if not nonegation else False
     n_epochs = 0 # set automatically for expt 10
     if n_epochs==0: n_epochs=None
-    acc_cutoff = 0 # set automatically for expt10
+    acc_cutoff = 90 # set automatically for expt10
     if acc_cutoff==0: acc_cutoff=None
     optimizer = args.optimizer
     num_layers = args.num_layers
@@ -246,7 +247,7 @@ def run(args):
 
         n_practiced_tasks = len(experiment.practicedRuleSet)
         #while n_practiced_tasks < len(experiment.taskRuleSet):
-        training_order = [4,8,12,16,20,24,28,32,36,40,44,48,52,56,60]
+        training_order = [4,60]
         taskcount = 0
         for n_practiced_tasks in training_order:
             modelname = save_model + str(sim)
@@ -336,7 +337,10 @@ def run(args):
             taskcontext_inputs = torch.from_numpy(taskcontext_inputs).float()
             if cuda:
                 taskcontext_inputs = taskcontext_inputs.cuda()
-            outputs, hidden_activations = network.forward(taskcontext_inputs,noise=True,dropout=False)
+            # Add noisy inputs for PS calculation
+            taskcontext_inputs = taskcontext_inputs + torch.randn(taskcontext_inputs.shape, device=network.device, dtype=torch.float)
+            # Generate hidden activations
+            outputs, hidden_activations = network.forward(taskcontext_inputs,noise=False,dropout=False)
 
             layercount = 1
             for layer in range(num_layers):
