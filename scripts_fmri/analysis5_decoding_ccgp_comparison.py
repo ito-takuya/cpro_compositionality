@@ -11,7 +11,7 @@ import argparse
 
 ######################################
 #### Basic parameters
-projectdir = '/projects3/CPROCompositionality/'
+#projectdir = '/projects3/CPROCompositionality/'
 projectdir = '/projectsn/f_mc1689_1/CPROCompositionality/'
 datadir = projectdir + 'data/processedData/' 
 resultdir = projectdir + 'data/results/'
@@ -38,7 +38,7 @@ parser.add_argument('--ccgp', action='store_true', help="Run variant that calcul
 parser.add_argument('--nproc', type=int, default=10, help="num parallel processes to run (DEFAULT: 10)")
 parser.add_argument('--kfold',type=int, default=10, help="number of CV folds (DEFAULT: 10)")
 parser.add_argument('--normalize', action='store_true', help="Normalize features (DEFAULT: FALSE")
-parser.add_argument('--classifier',type=str, default='distance', help="decoding method DEFAULT: 'distance' [distance, svm, logistic]")
+parser.add_argument('--classifier',type=str, default='logistic', help="decoding method DEFAULT: 'logistic' [distance, svm, logistic]")
 
 
 
@@ -86,8 +86,11 @@ def run(args):
         df_subj = df_subj.loc[df_subj.TrialLabels=='Trial1'] # only want one row per miniblock -- all rules per miniblock are the same, anyway
         # Now find corresponding task IDs
         task64_id = df_subj.TaskID.values
-        unique_tasks = np.sort(np.unique(task64_id))
-        for taskid in unique_tasks: # iterate from 1-64
+        #unique_tasks = np.sort(np.unique(task64_id))
+        #for taskid in unique_tasks: # iterate from 1-64
+        #
+        # Don't use unique task IDs
+        for taskid in task64_id: # iterate from 1-64
             ind = np.where(task64_id==taskid)[0]
             tmpmat = fmri[subjcount,:,ind]
             #print(tmpmat.shape)
@@ -120,7 +123,7 @@ def run(args):
         for roi in rois:
             roi_ind = np.where(glasser==roi)[0]
             roi_data = data_mat[:,roi_ind]
-            inputs.append((roi_data,subj_labels,task_labels,kfold,normalize,classifier,confusion,permutation,roi))
+            inputs.append((roi_data,subj_labels,task_labels,sensory_labels,motor_labels,taskid_labels,normalize,classifier,confusion,permutation,roi))
 
         pool = mp.Pool(processes=nproc)
         if ccgp:
@@ -159,7 +162,7 @@ def run(args):
         for roi in rois:
             roi_ind = np.where(glasser==roi)[0]
             roi_data = data_mat[:,roi_ind]
-            inputs.append((roi_data,subj_labels,task_labels,kfold,normalize,classifier,confusion,permutation,roi))
+            inputs.append((roi_data,subj_labels,task_labels,sensory_labels,motor_labels,taskid_labels,normalize,classifier,confusion,permutation,roi))
 
         pool = mp.Pool(processes=nproc)
         if ccgp:
@@ -198,7 +201,7 @@ def run(args):
         for roi in rois:
             roi_ind = np.where(glasser==roi)[0]
             roi_data = data_mat[:,roi_ind]
-            inputs.append((roi_data,subj_labels,task_labels,kfold,normalize,classifier,confusion,permutation,roi))
+            inputs.append((roi_data,subj_labels,task_labels,sensory_labels,motor_labels,taskid_labels,normalize,classifier,confusion,permutation,roi))
 
         pool = mp.Pool(processes=nproc)
         if ccgp:

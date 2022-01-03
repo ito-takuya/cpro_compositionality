@@ -11,7 +11,8 @@ def loadExperimentalData(subj):
     Loads in relevant data about the task/experiment/behavior for a given subject
     Pulls in data from the EDAT file
     """
-    edat_dir = '/projects/IndivRITL/data/rawdata/' + subj + '/behavdata/fMRI_Behavioral/'
+    #edat_dir = '/projects/IndivRITL/data/rawdata/' + subj + '/behavdata/fMRI_Behavioral/'
+    edat_dir = '/projectsn/f_mc1689_1/CPROCompositionality/data/behavioral_edat/'
     
     n_miniblocks = 128
     n_trials = 384 # 128 mini blocks + 3 trials

@@ -10,7 +10,8 @@ import pandas as pd
 import nibabel as nib
 import os
 
-glasserfile = '/projects3/CPROCompositionality/data/Q1-Q6_RelatedParcellation210.LR.CorticalAreas_dil_Colors.32k_fs_RL.dlabel.nii'
+#glasserfile = '/projects3/CPROCompositionality/data/Q1-Q6_RelatedParcellation210.LR.CorticalAreas_dil_Colors.32k_fs_RL.dlabel.nii'
+glasserfile = '/projectsn/f_mc1689_1/CPROCompositionality/data/Q1-Q6_RelatedParcellation210.LR.CorticalAreas_dil_Colors.32k_fs_RL.dlabel.nii'
 glasser = nib.load(glasserfile).get_data()
 glasser = np.squeeze(glasser)
 
@@ -80,6 +81,141 @@ def decodeGroup(data, subj_labels, task_labels,
         return accuracies, confusion_mat
     else:
         return accuracies
+
+def decodeGroup2(data, subj_labels, task_labels, secondary_labels, tertiary_labels, taskid_labels,
+                normalize=True, classifier='logistic',
+                confusion=False, permutation=False, roi=None):
+    """
+    Group decoding for a given set of task_labels
+    Ensures labels are separated by subject
+    data: sample x feature 2d matrix
+    subj_labels: subject labels
+    task_labels: task labels to be decoded
+    normalize: Perform feature-wise normalization within each CV fold -- default=True
+    classifier: classification method -- default='logistic' (linear-based) alternatives: ['svm','logistic','distance']
+    permutation: Randomly permute task_labels (default=False)
+    roi: Print out the ROI being decoded (default=None, which doesn't print out anything)
+
+
+    To maintain consistency with the CCGP decoding analysis, this will be a leave 16-out cross validation (but where contexts are not held-out for the purpose of testing generalization
+    """
+    kfold = 16
+   
+    # Create accuracies array to remember exactly the predictions for each sample
+    accuracies = np.zeros((len(task_labels),))
+    confusion_mats = [] 
+    # Begin CV
+    groupkfold = sklearn.model_selection.GroupKFold(n_splits=kfold)
+    for train_index, test_index in groupkfold.split(data,y=task_labels,groups=subj_labels):
+        X_train, X_test = data[train_index,:], data[test_index,:]
+        y_train, y_test = task_labels[train_index], task_labels[test_index]
+
+        if permutation:
+            np.random.seed(roi)
+            np.random.shuffle(y_train)
+
+        if normalize:
+            mean = np.mean(X_train,axis=0)
+            mean.shape = (1,len(mean))
+            std = np.std(X_train,axis=0)
+            std.shape = (1,len(std))
+
+            X_train = np.divide((X_train - mean),std)
+            X_test = np.divide((X_test - mean),std)
+
+        if confusion:
+            acc, confusion_mat = _decoding(X_train,X_test,y_train,y_test,classifier=classifier,confusion=confusion)
+            confusion_mats.append(confusion_mat)
+        else:
+            acc = _decoding(X_train,X_test,y_train,y_test,classifier=classifier,confusion=confusion)
+
+        accuracies[test_index] = acc
+
+    if roi is not None and not permutation:
+        print('Decoding ROI', roi, '| Average accuracy:', np.mean(accuracies))
+
+    if confusion:
+        confusion_mat = np.sum(np.asarray(confusion_mats),axis=0) # sum across all confusion matrices (for each CV fold)
+        return accuracies, confusion_mat
+    else:
+        return accuracies
+
+def ccgpGroup(data, subj_labels, task_labels, secondary_labels, tertiary_labels, taskid_labels,
+                normalize=True, classifier='logistic',
+                confusion=False, permutation=False, roi=None):
+    """
+    Group decoding for a given set of task_labels
+    Ensures labels are separated by subject
+    data: sample x feature 2d matrix
+    subj_labels: subject labels
+    task_labels: task labels to be decoded
+    normalize: Perform feature-wise normalization within each CV fold -- default=True
+    classifier: classification method -- default='logistic' (linear-based) alternatives: ['svm','logistic','distance']
+    permutation: Randomly permute task_labels (default=False)
+    roi: Print out the ROI being decoded (default=None, which doesn't print out anything)
+    """
+   
+    # Create accuracies array to remember exactly the predictions for each sample
+    accuracies = np.zeros((len(task_labels),))
+    confusion_mats = [] 
+
+    # Create cross-validation folds (specifically, identify the to-be-predicted incdices for each fold)
+    train_folds = []
+    test_folds = []
+    for label3 in np.unique(tertiary_labels):
+        label3_ind = np.where(tertiary_labels==label3)[0]
+        for label2 in np.unique(seconday_labels):
+            label2_ind = np.where(secondary_labels==label2)[0]
+            # matching context samples
+            context_matching_ind = []
+            for label in np.unique(task_labels):
+                label1_ind = np.where(task_labels==label)[0]
+                # find the intersection (i.e., unique task id)
+                task_ind = np.intersect1d(label3_ind,label2_ind)
+                task_ind = np.intersect1d(task_ind, label1_ind)
+                context_matching_ind.append(task_ind)
+            # Now add to the test_folds
+            test_folds.append(np.asarray(context_matching_ind))
+    
+    # Run cross-validation
+    all_indices = np.arange(len(task_labels))
+    for test_fold in test_folds:
+        # Define the training set as all samples not in the test set
+        train_fold = np.where(all_indices!=test_fold)[0]
+
+        X_train, X_test = data[train_fold,:], data[test_fold,:]
+        y_train, y_test = task_labels[train_fold], task_labels[test_index]
+
+        if permutation:
+            np.random.seed(roi)
+            np.random.shuffle(y_train)
+
+        if normalize:
+            mean = np.mean(X_train,axis=0)
+            mean.shape = (1,len(mean))
+            std = np.std(X_train,axis=0)
+            std.shape = (1,len(std))
+
+            X_train = np.divide((X_train - mean),std)
+            X_test = np.divide((X_test - mean),std)
+
+        if confusion:
+            acc, confusion_mat = _decoding(X_train,X_test,y_train,y_test,classifier=classifier,confusion=confusion)
+            confusion_mats.append(confusion_mat)
+        else:
+            acc = _decoding(X_train,X_test,y_train,y_test,classifier=classifier,confusion=confusion)
+
+        accuracies[test_index] = acc
+
+    if roi is not None and not permutation:
+        print('Decoding ROI', roi, '| Average accuracy:', np.mean(accuracies))
+
+    if confusion:
+        confusion_mat = np.sum(np.asarray(confusion_mats),axis=0) # sum across all confusion matrices (for each CV fold)
+        return accuracies, confusion_mat
+    else:
+        return accuracies
+      
 
 
     
