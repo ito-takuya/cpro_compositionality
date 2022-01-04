@@ -90,11 +90,10 @@ def run(args):
         #for taskid in unique_tasks: # iterate from 1-64
         #
         # Don't use unique task IDs
+        miniblockcount = 0
         for taskid in task64_id: # iterate from 1-64
-            ind = np.where(task64_id==taskid)[0]
-            tmpmat = fmri[subjcount,:,ind]
-            #print(tmpmat.shape)
-            data_mat[i,:] = np.mean(tmpmat,axis=0) #tmp mat is cond x vertices
+            #ind = np.where(task64_id==taskid)[0]
+            data_mat[i,:] = fmri[subjcount,:,miniblockcount]
             # Create relevant labels for decoding
             tmpdf = df_subj.loc[df_subj.TaskID==taskid]
             logic_labels.append(tmpdf.LogicRules.values[0])
@@ -102,6 +101,7 @@ def run(args):
             motor_labels.append(tmpdf.MotorRules.values[0])
             unique_taskid.append(taskid)
             subj_labels.append(subjcount)
+            miniblockcount += 1
             i += 1
         subjcount += 1
 
