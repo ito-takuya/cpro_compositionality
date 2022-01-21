@@ -190,6 +190,12 @@ def decodeSubj(data, task_labels, secondary_labels, tertiary_labels, taskid_labe
         X_train, X_test = data[train_index,:], data[test_index,:]
         y_train, y_test = task_labels[train_index], task_labels[test_index]
 
+#        print('***************')
+#        print(y_test)
+#        print(secondary_labels[test_index])
+#        print(tertiary_labels[test_index])
+#        print('***************')
+
         if permutation:
             np.random.seed(roi)
             np.random.shuffle(y_train)

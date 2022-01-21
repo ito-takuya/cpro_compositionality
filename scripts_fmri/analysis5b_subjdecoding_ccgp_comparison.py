@@ -129,6 +129,11 @@ def run(args):
                 roi_ind = np.where(glasser==roi)[0]
                 roi_data = data_mat[scount,:,roi_ind].T
                 inputs.append((roi_data,task_labels[subj],sensory_labels[subj],motor_labels[subj],taskid_labels[subj],normalize,classifier,confusion,permutation,roi))
+                #if ccgp:
+                #    tools.ccgpSubj(roi_data,task_labels[subj],sensory_labels[subj],motor_labels[subj],taskid_labels[subj],normalize,classifier,confusion,permutation,roi)
+                #else:
+                #    tools.decodeSubj(roi_data,task_labels[subj],sensory_labels[subj],motor_labels[subj],taskid_labels[subj],normalize,classifier,confusion,permutation,roi)
+                #raise Exception('stop')
 
             pool = mp.Pool(processes=nproc)
             if ccgp:
@@ -165,7 +170,8 @@ def run(args):
         # pull out labels of interest
         task_labels = sensory_labels
         mat = np.zeros((len(rois),len(subjNums)))
-        for scount in range(len(subjNums)):
+        scount = 0
+        for subj in subjNums:
             print('Running sensory rule decoding on subject', scount, '/', len(subjNums))
             inputs = []
             for roi in rois:
@@ -208,7 +214,8 @@ def run(args):
         # pull out labels of interest
         task_labels = motor_labels
         mat = np.zeros((len(rois),len(subjNums)))
-        for scount in range(len(subjNums)):
+        scount = 0
+        for subj in subjNums:
             print('Running motor rule decoding on subject', scount, '/', len(subjNums))
             inputs = []
             for roi in rois:
