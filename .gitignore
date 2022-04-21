@@ -1,3 +1,6 @@
 .ipynb_checkpoints/
 __pycache__
 *.gdoc
+*.pdf
+*.png
+*.ai
