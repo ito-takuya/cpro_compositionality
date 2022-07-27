@@ -23,6 +23,8 @@ analysis = reload(analysis)
 import torch
 import pandas as pd
 import tools
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 datadir = '../../data/'
 

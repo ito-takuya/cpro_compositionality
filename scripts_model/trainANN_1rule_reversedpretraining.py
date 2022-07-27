@@ -12,6 +12,8 @@ import torch
 import pandas as pd
 #from torch.autograd import Variable
 #import torch.nn.functional as F
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 datadir = '../../data/'
 
