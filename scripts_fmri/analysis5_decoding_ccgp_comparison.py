@@ -60,7 +60,7 @@ def run(args):
     confusion = True
     rois = np.arange(1,361)
     if not normalize:
-        strlabel = '_unnormalized_'
+        strlabel = '_unnormalized'
     else:
         strlabel = ''
     
@@ -129,7 +129,7 @@ def run(args):
         if ccgp:
             results = pool.starmap_async(tools.ccgpGroup,inputs).get()
         else:
-            results = pool.starmap_async(tools.decodeGroup2,inputs).get()
+            results = pool.starmap_async(tools.decodeGroup,inputs).get()
         pool.close()
         pool.join()
 
@@ -148,9 +148,9 @@ def run(args):
             i += 1
 
         if ccgp:
-            np.savetxt(resultdir + 'DecodingAnalyses/LogicCCGP.csv',mat)
+            np.savetxt(resultdir + 'DecodingAnalyses/GroupLogicCCGP_' + classifier + strlabel + '.csv',mat)
         else:
-            np.savetxt(resultdir + 'DecodingAnalyses/LogicDecoding.csv',mat)
+            np.savetxt(resultdir + 'DecodingAnalyses/GroupLogicDecoding_' + classifier + strlabel + '.csv',mat)
 
     ######################################
     #### Sensory rule decoding
@@ -168,7 +168,7 @@ def run(args):
         if ccgp:
             results = pool.starmap_async(tools.ccgpGroup,inputs).get()
         else:
-            results = pool.starmap_async(tools.decodeGroup2,inputs).get()
+            results = pool.starmap_async(tools.decodeGroup,inputs).get()
         pool.close()
         pool.join()
 
@@ -187,9 +187,9 @@ def run(args):
             i += 1
 
         if ccgp:
-            np.savetxt(resultdir + 'DecodingAnalyses/SensoryCCGP.csv',mat)
+            np.savetxt(resultdir + 'DecodingAnalyses/GroupSensoryCCGP_' + classifier + strlabel + '.csv',mat)
         else:
-            np.savetxt(resultdir + 'DecodingAnalyses/SensoryDecoding.csv',mat)
+            np.savetxt(resultdir + 'DecodingAnalyses/GroupSensoryDecoding_' + classifier + strlabel + '.csv',mat)
 
     ######################################
     #### Motor rule decoding
@@ -202,12 +202,14 @@ def run(args):
             roi_ind = np.where(glasser==roi)[0]
             roi_data = data_mat[:,roi_ind]
             inputs.append((roi_data,subj_labels,task_labels,sensory_labels,motor_labels,taskid_labels,normalize,classifier,confusion,permutation,roi))
+#            tools.ccgpGroup(roi_data,subj_labels,task_labels,sensory_labels,motor_labels,taskid_labels,normalize,classifier,confusion,permutation,roi)
+#            raise Exception('debug')
 
         pool = mp.Pool(processes=nproc)
         if ccgp:
             results = pool.starmap_async(tools.ccgpGroup,inputs).get()
         else:
-            results = pool.starmap_async(tools.decodeGroup2,inputs).get()
+            results = pool.starmap_async(tools.decodeGroup,inputs).get()
         pool.close()
         pool.join()
 
@@ -226,9 +228,9 @@ def run(args):
             i += 1
 
         if ccgp:
-            np.savetxt(resultdir + 'DecodingAnalyses/MotorCCGP.csv',mat)
+            np.savetxt(resultdir + 'DecodingAnalyses/GroupMotorCCGP_' + classifier + strlabel + '.csv',mat)
         else:
-            np.savetxt(resultdir + 'DecodingAnalyses/MotorDecoding.csv',mat)
+            np.savetxt(resultdir + 'DecodingAnalyses/GroupMotorDecoding_' + classifier + strlabel + '.csv',mat)
 
 
 if __name__ == '__main__':

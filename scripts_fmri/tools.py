@@ -110,7 +110,7 @@ def ccgpGroup(data, subj_labels, task_labels, secondary_labels, tertiary_labels,
     test_folds = []
     for label3 in np.unique(tertiary_labels):
         label3_ind = np.where(tertiary_labels==label3)[0]
-        for label2 in np.unique(seconday_labels):
+        for label2 in np.unique(secondary_labels):
             label2_ind = np.where(secondary_labels==label2)[0]
             # matching context samples
             context_matching_ind = []
@@ -119,18 +119,20 @@ def ccgpGroup(data, subj_labels, task_labels, secondary_labels, tertiary_labels,
                 # find the intersection (i.e., unique task id)
                 task_ind = np.intersect1d(label3_ind,label2_ind)
                 task_ind = np.intersect1d(task_ind, label1_ind)
-                context_matching_ind.append(task_ind)
+                context_matching_ind.extend(task_ind)
             # Now add to the test_folds
             test_folds.append(np.asarray(context_matching_ind))
     
     # Run cross-validation
     all_indices = np.arange(len(task_labels))
     for test_fold in test_folds:
+        test_fold = test_fold.reshape(-1) # This is currently a 2d matrix
         # Define the training set as all samples not in the test set
-        train_fold = np.where(all_indices!=test_fold)[0]
+        train_fold = np.delete(all_indices,test_fold)
+        #train_fold = np.where(all_indices!=test_fold)[0]
 
         X_train, X_test = data[train_fold,:], data[test_fold,:]
-        y_train, y_test = task_labels[train_fold], task_labels[test_index]
+        y_train, y_test = task_labels[train_fold], task_labels[test_fold]
 
         if permutation:
             np.random.seed(roi)
@@ -151,7 +153,7 @@ def ccgpGroup(data, subj_labels, task_labels, secondary_labels, tertiary_labels,
         else:
             acc = _decoding(X_train,X_test,y_train,y_test,classifier=classifier,confusion=confusion)
 
-        accuracies[test_index] = acc
+        accuracies[test_fold] = acc
 
     if roi is not None and not permutation:
         print('Decoding ROI', roi, '| Average accuracy:', np.mean(accuracies))
@@ -190,14 +192,8 @@ def decodeSubj(data, task_labels, secondary_labels, tertiary_labels, taskid_labe
         X_train, X_test = data[train_index,:], data[test_index,:]
         y_train, y_test = task_labels[train_index], task_labels[test_index]
 
-#        print('***************')
-#        print(y_test)
-#        print(secondary_labels[test_index])
-#        print(tertiary_labels[test_index])
-#        print('***************')
-
-        if permutation:
-            np.random.seed(roi)
+        if permutation != False:
+            np.random.seed(permutation)
             np.random.shuffle(y_train)
 
         if normalize:
@@ -259,7 +255,7 @@ def ccgpSubj(data, task_labels, secondary_labels, tertiary_labels, taskid_labels
                 # find the intersection (i.e., unique task id)
                 task_ind = np.intersect1d(label3_ind,label2_ind)
                 task_ind = np.intersect1d(task_ind, label1_ind)
-                context_matching_ind.append(task_ind)
+                context_matching_ind.extend(task_ind)
             # Now add to the test_folds
             test_folds.append(np.asarray(context_matching_ind))
     
@@ -274,8 +270,8 @@ def ccgpSubj(data, task_labels, secondary_labels, tertiary_labels, taskid_labels
         X_train, X_test = data[train_fold,:], data[test_fold,:]
         y_train, y_test = task_labels[train_fold], task_labels[test_fold]
 
-        if permutation:
-            np.random.seed(roi)
+        if permutation != False:
+            np.random.seed(permutation)
             np.random.shuffle(y_train)
 
         if normalize:

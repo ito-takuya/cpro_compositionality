@@ -39,6 +39,7 @@ parser.add_argument('--nproc', type=int, default=10, help="num parallel processe
 parser.add_argument('--kfold',type=int, default=10, help="number of CV folds (DEFAULT: 10)")
 parser.add_argument('--normalize', action='store_true', help="Normalize features (DEFAULT: FALSE")
 parser.add_argument('--classifier',type=str, default='logistic', help="decoding method DEFAULT: 'logistic' [distance, svm, logistic]")
+parser.add_argument('--npermutation',type=int, default=0, help="Run as a permutation test... if npermutation=0 (default), then don't run as a permutation (i.e., don't shuffle)")
 
 
 
@@ -52,8 +53,12 @@ def run(args):
     kfold = args.kfold
     normalize = args.normalize
     classifier = args.classifier
+    npermutation = args.npermutation
+    if npermutation==0:
+        permutation = False
+    else:
+        permutation = True
 
-    permutation = False
     ##############################################################
     #### Set decoding parameters
     # function parameters
@@ -177,7 +182,10 @@ def run(args):
             for roi in rois:
                 roi_ind = np.where(glasser==roi)[0]
                 roi_data = data_mat[scount,:,roi_ind].T
-                inputs.append((roi_data,task_labels[subj],logic_labels[subj],motor_labels[subj],taskid_labels[subj],normalize,classifier,confusion,permutation,roi))
+                if permutation:
+                    inputs.append((roi_data,task_labels[subj],logic_labels[subj],motor_labels[subj],taskid_labels[subj],normalize,classifier,confusion,np.random.randint(10000000),roi))
+                else:
+                    inputs.append((roi_data,task_labels[subj],logic_labels[subj],motor_labels[subj],taskid_labels[subj],normalize,classifier,confusion,permutation,roi))
 
             pool = mp.Pool(processes=nproc)
             if ccgp:
