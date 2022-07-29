@@ -116,7 +116,7 @@ def run(args):
             roi_ind = np.where(glasser==roi)[0]
             mat = avg_data[roi_ind,:].T
             ps, classes = tools.parallelismScore(mat,logic_labels,sensory_labels,motor_labels,shuffle=permutation)
-            psmat_logic[:,:,roi] = ps.copy() 
+            psmat_logic[:,:,roicount] = ps.copy() 
             logic_classes = classes.copy()
             ps_score[roicount] = np.nanmean(ps)
 
@@ -146,7 +146,7 @@ def run(args):
             roi_ind = np.where(glasser==roi)[0]
             mat = avg_data[roi_ind,:].T
             ps, classes = tools.parallelismScore(mat,sensory_labels,logic_labels,motor_labels,shuffle=permutation)
-            psmat_sensory[:,:,roi] = ps.copy()
+            psmat_sensory[:,:,roicount] = ps.copy()
             sensory_classes = classes.copy()
             ps_score[roicount] = np.nanmean(ps)
 
@@ -176,6 +176,7 @@ def run(args):
             roi_ind = np.where(glasser==roi)[0]
             mat = avg_data[roi_ind,:].T
             ps, classes = tools.parallelismScore(mat,motor_labels,logic_labels,sensory_labels,shuffle=permutation)
+            psmat_motor[:,:,roicount] = ps.copy()
             motor_classes = classes.copy()
             ps_score[roicount] = np.nanmean(ps)
 
