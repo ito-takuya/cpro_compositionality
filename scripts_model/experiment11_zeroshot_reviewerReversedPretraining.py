@@ -385,15 +385,14 @@ def run(args):
                     print('\t Logic PS layer', layercount, ':', np.nanmean(logicps[triu_ind]), '| Sensory PS:', np.nanmean(sensoryps[triu_ind]), '| Motor PS:', np.nanmean(motorps[triu_ind]))
 
                 if savePS:
-                    print(logicps.shape)
-                    psmat_logic[:,:,layercount] = logicps
-                    psmat_sensory[:,:,layercount] = sensoryps
-                    psmat_motor[:,:,layercount] = motorps
+                    psmat_logic[:,:,layercount-1] = logicps
+                    psmat_sensory[:,:,layercount-1] = sensoryps
+                    psmat_motor[:,:,layercount-1] = motorps
 
                 layercount += 1
 
             if savePS:
-                h5f = h5py.File(outpudir + save_model + '_simData' + str(sim) + 'psMatrices.h5','a')
+                h5f = h5py.File(outputdir + save_model + '_simData' + str(sim) + 'psMatrices.h5','a')
                 try:
                     h5f.create_dataset('logic',data=psmat_logic)
                     h5f.create_dataset('sensory',data=psmat_sensory)
