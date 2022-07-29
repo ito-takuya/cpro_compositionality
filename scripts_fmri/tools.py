@@ -15,6 +15,8 @@ glasserfile = '/projectsn/f_mc1689_1/CPROCompositionality/data/Q1-Q6_RelatedParc
 try:
     glasser = nib.load(glasserfile).get_data()
     glasser = np.squeeze(glasser)
+except:
+    pass
 
 
 def loadGroupBehavioralData(subjNums):

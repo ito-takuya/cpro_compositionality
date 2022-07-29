@@ -44,6 +44,7 @@ def run(args):
     sensory = args.sensory
     motor = args.motor
     nproc = args.nproc
+    savePS = args.savePS
     import loadTaskBehavioralData as task
     permutation = False
 
