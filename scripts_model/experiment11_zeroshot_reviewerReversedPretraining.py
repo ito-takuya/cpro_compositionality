@@ -24,6 +24,8 @@ import torch
 import pandas as pd
 import tools
 import warnings
+import h5py
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 datadir = '../../data/'
@@ -44,6 +46,7 @@ parser.add_argument('--num_hidden', type=int, default=128, help="number of units
 parser.add_argument('--learning_rate', type=float, default=0.001, help="learning rate for pretraining sessions (DEFAULT: 0.001)")
 parser.add_argument('--save', action='store_true', help="save or don't save model")
 parser.add_argument('--batchname', type=str, default='Experiment_FullTaskSet_11LogicInputs', help='string name for the experiment filename')
+parser.add_argument('--savePS', action='store_true', help='Save out PS matrices for each hidden layer')
 parser.add_argument('--si_c', type=float, default=0.0, help='synaptic intelligence parameter (Zenke et al. 2017); default=0, meaning no synaptic intelligence implemented')
 
 
@@ -70,6 +73,7 @@ def run(args):
     rule2pretraining = args.rule2pretraining
     cuda = args.cuda
     verbose = args.verbose
+    savePS = args.savePS
 
     outputdir = datadir + '/results/experiment11/'
 
@@ -345,6 +349,9 @@ def run(args):
             # Generate hidden activations
             outputs, hidden_activations = network.forward(taskcontext_inputs,noise=False,dropout=False)
 
+            psmat_logic = np.zeros((4,4,num_layers)) # for rules per domain
+            psmat_sensory = np.zeros((4,4,num_layers))
+            psmat_motor = np.zeros((4,4,num_layers))
             layercount = 1
             for layer in range(num_layers):
                 hidden = hidden_activations[layer].detach().cpu().numpy()
@@ -377,8 +384,25 @@ def run(args):
                 if verbose: 
                     print('\t Logic PS layer', layercount, ':', np.nanmean(logicps[triu_ind]), '| Sensory PS:', np.nanmean(sensoryps[triu_ind]), '| Motor PS:', np.nanmean(motorps[triu_ind]))
 
+                if savePS:
+                    psmat_logic[:,:,layercount] = logicps
+                    psmat_sensory[:,:,layercount] = sensoryps
+                    psmat_motor[:,:,layercount] = motorps
+
                 layercount += 1
 
+            if savePS:
+                h5f = h5py.File(outpudir + save_model + '_simData' + str(sim) + 'psMatrices.h5','a')
+                try:
+                    h5f.create_dataset('logic',data=psmat_logic)
+                    h5f.create_dataset('sensory',data=psmat_sensory)
+                    h5f.create_dataset('motor',data=psmat_motor)
+                except:
+                    del h5f['logic'], h5f['sensory'], h5f['motor']
+                    h5f.create_dataset('logic',data=psmat_logic)
+                    h5f.create_dataset('sensory',data=psmat_sensory)
+                    h5f.create_dataset('motor',data=psmat_motor)
+                h5f.close()
 
             # exit if practice==False
             if not practice:
