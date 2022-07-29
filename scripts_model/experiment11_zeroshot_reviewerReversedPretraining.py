@@ -405,7 +405,7 @@ def run(args):
                     h5f.create_dataset('motor_classes',data=motor_classes)
 
                 except:
-                    del h5f['logic'], h5f['sensory'], h5f['motor']
+                    del h5f['logic'], h5f['sensory'], h5f['motor'], h5f['logic_classes'], h5f['sensory_classes'], h5f['motor_classes']
                     h5f.create_dataset('logic',data=psmat_logic)
                     h5f.create_dataset('sensory',data=psmat_sensory)
                     h5f.create_dataset('motor',data=psmat_motor)
