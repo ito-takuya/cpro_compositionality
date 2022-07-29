@@ -361,6 +361,7 @@ def run(args):
                                                      experiment.taskRuleSet.Logic.values,
                                                      experiment.taskRuleSet.Sensory.values,
                                                      experiment.taskRuleSet.Motor.values)
+                logic_classes = classes.copy()
                 triu_ind = np.triu_indices(len(classes),k=1)
                 df_sim['LogicPS' + str(layercount)].append(np.nanmean(logicps[triu_ind]))
 
@@ -369,6 +370,7 @@ def run(args):
                                                      experiment.taskRuleSet.Sensory.values,
                                                      experiment.taskRuleSet.Logic.values,
                                                      experiment.taskRuleSet.Motor.values)
+                sensory_classes = classes.copy()
                 triu_ind = np.triu_indices(len(classes),k=1)
                 df_sim['SensoryPS' + str(layercount)].append(np.nanmean(sensoryps[triu_ind]))
 
@@ -378,6 +380,7 @@ def run(args):
                                                      experiment.taskRuleSet.Motor.values,
                                                      experiment.taskRuleSet.Logic.values,
                                                      experiment.taskRuleSet.Sensory.values)
+                motor_classes = classes.copy()
                 triu_ind = np.triu_indices(len(classes),k=1)
                 df_sim['MotorPS' + str(layercount)].append(np.nanmean(motorps[triu_ind]))
             
@@ -397,6 +400,10 @@ def run(args):
                     h5f.create_dataset('logic',data=psmat_logic)
                     h5f.create_dataset('sensory',data=psmat_sensory)
                     h5f.create_dataset('motor',data=psmat_motor)
+                    h5f.create_dataset('logic_classes',data=logic_classes)
+                    h5f.create_dataset('sensory_classes',data=sensory_classes)
+                    h5f.create_dataset('motor_classes',data=motor_classes)
+
                 except:
                     del h5f['logic'], h5f['sensory'], h5f['motor']
                     h5f.create_dataset('logic',data=psmat_logic)
