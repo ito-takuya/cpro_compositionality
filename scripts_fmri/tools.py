@@ -12,8 +12,9 @@ import os
 
 #glasserfile = '/projects3/CPROCompositionality/data/Q1-Q6_RelatedParcellation210.LR.CorticalAreas_dil_Colors.32k_fs_RL.dlabel.nii'
 glasserfile = '/projectsn/f_mc1689_1/CPROCompositionality/data/Q1-Q6_RelatedParcellation210.LR.CorticalAreas_dil_Colors.32k_fs_RL.dlabel.nii'
-glasser = nib.load(glasserfile).get_data()
-glasser = np.squeeze(glasser)
+try:
+    glasser = nib.load(glasserfile).get_data()
+    glasser = np.squeeze(glasser)
 
 
 def loadGroupBehavioralData(subjNums):
