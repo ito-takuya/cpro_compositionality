@@ -33,6 +33,7 @@ parser = argparse.ArgumentParser('./main.py', description='Calculate the paralle
 parser.add_argument('--logic', action='store_true', help="Run Logic rule decoding")
 parser.add_argument('--sensory', action='store_true', help="Run sensory rule decoding")
 parser.add_argument('--motor', action='store_true', help="Run motor rule decoding")
+parser.add_argument('--savePS', action='store_true', help="save the PS matrices for each ROI")
 parser.add_argument('--nproc', type=int, default=10, help="num parallel processes to run (DEFAULT: 10)")
 
 
@@ -109,11 +110,14 @@ def run(args):
     if logic:
         print('Running Logic Rule PS calculation...')
         ps_score = np.zeros((len(rois),1))
+        psmat_logic = np.zeros((4,4,360))
         roicount = 0
         for roi in rois:
             roi_ind = np.where(glasser==roi)[0]
             mat = avg_data[roi_ind,:].T
             ps, classes = tools.parallelismScore(mat,logic_labels,sensory_labels,motor_labels,shuffle=permutation)
+            psmat_logic[:,:,roi] = ps.copy() 
+            logic_classes = classes.copy()
             ps_score[roicount] = np.nanmean(ps)
 
             print('PS for ROI', roi, '=', np.mean(ps_score[roicount]))
@@ -121,17 +125,29 @@ def run(args):
             roicount += 1
 
         np.savetxt(resultdir + 'ParallelismScore_LogicRules_GroupAverage.csv',ps_score)
+        if savePS:
+            h5f = h5py.File(resultdir + 'PS_matrices_Logic.h5','a')
+            try:
+                h5f.create_dataset('data',data=psmat_logic)
+            except:
+                del h5f['data']
+                h5f.create_dataset('data',data=psmat_logic)
+            h5f.close
+            df = pd.DataFrame(logic_classes); df.to_csv(resultdir + 'PS_Logic_ClassLabels.txt')
 
     ######################################
     #### Sensory parallelism calculation
     if sensory:
         print('Running Sensory Rule PS calculation...')
         ps_score = np.zeros((len(rois),1))
+        psmat_sensory = np.zeros((4,4,360))
         roicount = 0
         for roi in rois:
             roi_ind = np.where(glasser==roi)[0]
             mat = avg_data[roi_ind,:].T
             ps, classes = tools.parallelismScore(mat,sensory_labels,logic_labels,motor_labels,shuffle=permutation)
+            psmat_sensory[:,:,roi] = ps.copy()
+            sensory_classes = classes.copy()
             ps_score[roicount] = np.nanmean(ps)
 
             print('PS for ROI', roi, '=', np.mean(ps_score[roicount]))
@@ -139,17 +155,28 @@ def run(args):
             roicount += 1
 
         np.savetxt(resultdir + 'ParallelismScore_SensoryRules_GroupAverage.csv',ps_score)
+        if savePS:
+            h5f = h5py.File(resultdir + 'PS_matrices_Sensory.h5','a')
+            try:
+                h5f.create_dataset('data',data=psmat_sensory)
+            except:
+                del h5f['data']
+                h5f.create_dataset('data',data=psmat_sensory)
+            h5f.close
+            df = pd.DataFrame(sensory_classes); df.to_csv(resultdir + 'PS_Sensory_ClassLabels.txt')
 
     ######################################
     #### Motor parallelism calculation
     if motor:
         print('Running Motor Rule PS calculation...')
         ps_score = np.zeros((len(rois),1))
+        psmat_motor = np.zeros((4,4,360))
         roicount = 0
         for roi in rois:
             roi_ind = np.where(glasser==roi)[0]
             mat = avg_data[roi_ind,:].T
             ps, classes = tools.parallelismScore(mat,motor_labels,logic_labels,sensory_labels,shuffle=permutation)
+            motor_classes = classes.copy()
             ps_score[roicount] = np.nanmean(ps)
 
             print('PS for ROI', roi, '=', np.mean(ps_score[roicount]))
@@ -157,7 +184,15 @@ def run(args):
             roicount += 1
 
         np.savetxt(resultdir + 'ParallelismScore_MotorRules_GroupAverage.csv',ps_score)
-
+        if savePS:
+            h5f = h5py.File(resultdir + 'PS_matrices_Motor.h5','a')
+            try:
+                h5f.create_dataset('data',data=psmat_motor)
+            except:
+                del h5f['data']
+                h5f.create_dataset('data',data=psmat_motor)
+            h5f.close
+            df = pd.DataFrame(motor_classes); df.to_csv(resultdir + 'PS_Motor_ClassLabels.txt')
 
 if __name__ == '__main__':
     args = parser.parse_args()
