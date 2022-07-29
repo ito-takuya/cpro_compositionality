@@ -385,6 +385,7 @@ def run(args):
                     print('\t Logic PS layer', layercount, ':', np.nanmean(logicps[triu_ind]), '| Sensory PS:', np.nanmean(sensoryps[triu_ind]), '| Motor PS:', np.nanmean(motorps[triu_ind]))
 
                 if savePS:
+                    print(logicps.shape)
                     psmat_logic[:,:,layercount] = logicps
                     psmat_sensory[:,:,layercount] = sensoryps
                     psmat_motor[:,:,layercount] = motorps
