@@ -1,5 +1,4 @@
-#### Experiment 11 -- reviewer experiment
-# Same as experiment 10, but performs simple task pretraining before primitives training
+#### Experiment 10
 # Results focus on zero-shot modeling of 3layer and 2layer models where pretrained tasks are performed at 100% 
 # for each simulation, incrementally train additional tasks (i.e., include more practiced tasks) and assess performance etc.
 # fix number of epochs of data trained on, rather than using an 'accuracy cut-off'
@@ -16,37 +15,33 @@ import model.task_1ruletasks as task
 import time
 import model.analysis as analysis
 from importlib import reload
-import trainANN_1rule_reversedpretraining as trainANN
+import trainANN_1rule_reviewerFixedPretrainingEpochsXcalculatePS as trainANN
 mod = reload(mod)
 task = reload(task)
 analysis = reload(analysis)
 import torch
 import pandas as pd
 import tools
-import warnings
-import h5py
-
-warnings.simplefilter(action='ignore', category=FutureWarning)
 
 datadir = '../../data/'
 
 parser = argparse.ArgumentParser('./main.py', description='Run a set of simulations/models')
 parser.add_argument('--nsimulations', type=int, default=20, help='number of models/simulations to run')
 parser.add_argument('--simstart', type=int, default=0, help='start of simulations (default: 0)')
+parser.add_argument('--pretrain_epochs', type=int, default=1, help='number of pretraining epochs to run')
 parser.add_argument('--pretraining', action='store_true', help="pretrain network on 1 rule tasks")
 parser.add_argument('--rule2pretraining', action='store_true', help="pretrain network on 2 rule tasks")
 parser.add_argument('--nonegation', action='store_true', help="do not use negations of 1 rule tasks")
 parser.add_argument('--practice', action='store_true', help="Train on practiced tasks")
 parser.add_argument('--optimizer', type=str, default='adam', help='default optimizer to train on practiced tasks (DEFAULT: adam')
 parser.add_argument('--cuda', action='store_true', help="use gpu/cuda")
-parser.add_argument('--save_model', type=str, default="expt10", help='string name to output models (DEFAULT: ANN)')
+parser.add_argument('--save_model', type=str, default="expt12", help='string name to output models (DEFAULT: ANN)')
 parser.add_argument('--verbose', action='store_true', help='verbose')
 parser.add_argument('--num_layers', type=int, default=2, help="number of hidden layers (DEFAULT: 2")
 parser.add_argument('--num_hidden', type=int, default=128, help="number of units in hidden layers (DEFAULT: 128")
 parser.add_argument('--learning_rate', type=float, default=0.001, help="learning rate for pretraining sessions (DEFAULT: 0.001)")
 parser.add_argument('--save', action='store_true', help="save or don't save model")
 parser.add_argument('--batchname', type=str, default='Experiment_FullTaskSet_11LogicInputs', help='string name for the experiment filename')
-parser.add_argument('--savePS', action='store_true', help='Save out PS matrices for each hidden layer')
 parser.add_argument('--si_c', type=float, default=0.0, help='synaptic intelligence parameter (Zenke et al. 2017); default=0, meaning no synaptic intelligence implemented')
 
 
@@ -54,6 +49,7 @@ def run(args):
     args 
     nsimulations = args.nsimulations
     simstart = args.simstart
+    pretrain_epochs = args.pretrain_epochs
     si_c = args.si_c
     practice = args.practice 
     nonegation = args.nonegation
@@ -73,9 +69,8 @@ def run(args):
     rule2pretraining = args.rule2pretraining
     cuda = args.cuda
     verbose = args.verbose
-    savePS = args.savePS
 
-    outputdir = datadir + '/results/experiment11/'
+    outputdir = datadir + '/results/experiment12/'
 
     #save_model = save_model + '_' + batchname
     save_model = save_model + '_' + optimizer
@@ -89,10 +84,10 @@ def run(args):
 
     save_model = save_model + '_' + str(int(num_layers)) + 'layers'
     if pretraining:
-        save_model = save_model + '_pretraining'
+        save_model = save_model + '_pretraining' + str(pretrain_epochs)
 
     if rule2pretraining:
-        save_model = save_model + '_2rulepretraining'
+        save_model = save_model + '_2rulepretraining' + str(pretrain_epochs)
 
     if nonegation:
         save_model = save_model + '_nonegation'
@@ -268,7 +263,7 @@ def run(args):
                                                                     optimizer=optimizer,acc_cutoff=acc_cutoff,
                                                                     num_hidden=num_hidden,num_hidden_layers=num_layers,learning_rate=learning_rate,save=save,
                                                                     save_model=outputdir+modelname+'.pt',verbose=False,lossfunc='CrossEntropy',
-                                                                    pretraining=pretraining,rule2pretraining=rule2pretraining,device=device)
+                                                                    pretraining=pretraining,rule2pretraining=rule2pretraining,pretraining_epochs=pretrain_epochs,device=device)
         
 
             network.eval()
@@ -349,9 +344,6 @@ def run(args):
             # Generate hidden activations
             outputs, hidden_activations = network.forward(taskcontext_inputs,noise=False,dropout=False)
 
-            psmat_logic = np.zeros((4,4,num_layers)) # for rules per domain
-            psmat_sensory = np.zeros((4,4,num_layers))
-            psmat_motor = np.zeros((4,4,num_layers))
             layercount = 1
             for layer in range(num_layers):
                 hidden = hidden_activations[layer].detach().cpu().numpy()
@@ -361,7 +353,6 @@ def run(args):
                                                      experiment.taskRuleSet.Logic.values,
                                                      experiment.taskRuleSet.Sensory.values,
                                                      experiment.taskRuleSet.Motor.values)
-                logic_classes = classes.copy()
                 triu_ind = np.triu_indices(len(classes),k=1)
                 df_sim['LogicPS' + str(layercount)].append(np.nanmean(logicps[triu_ind]))
 
@@ -370,7 +361,6 @@ def run(args):
                                                      experiment.taskRuleSet.Sensory.values,
                                                      experiment.taskRuleSet.Logic.values,
                                                      experiment.taskRuleSet.Motor.values)
-                sensory_classes = classes.copy()
                 triu_ind = np.triu_indices(len(classes),k=1)
                 df_sim['SensoryPS' + str(layercount)].append(np.nanmean(sensoryps[triu_ind]))
 
@@ -380,32 +370,14 @@ def run(args):
                                                      experiment.taskRuleSet.Motor.values,
                                                      experiment.taskRuleSet.Logic.values,
                                                      experiment.taskRuleSet.Sensory.values)
-                motor_classes = classes.copy()
                 triu_ind = np.triu_indices(len(classes),k=1)
                 df_sim['MotorPS' + str(layercount)].append(np.nanmean(motorps[triu_ind]))
             
                 if verbose: 
                     print('\t Logic PS layer', layercount, ':', np.nanmean(logicps[triu_ind]), '| Sensory PS:', np.nanmean(sensoryps[triu_ind]), '| Motor PS:', np.nanmean(motorps[triu_ind]))
 
-                if savePS:
-                    psmat_logic[:,:,layercount-1] = logicps
-                    psmat_sensory[:,:,layercount-1] = sensoryps
-                    psmat_motor[:,:,layercount-1] = motorps
-
                 layercount += 1
 
-            if savePS:
-                h5f = h5py.File(outputdir + save_model + '_simData' + str(sim) + 'psMatrices.h5','a')
-                df = pd.DataFrame(logic_classes); df.to_csv(outputdir + 'PS_ClassLabels_Logic.txt')
-                df = pd.DataFrame(sensory_classes); df.to_csv(outputdir + 'PS_ClassLabels_Sensory.txt')
-                df = pd.DataFrame(motor_classes); df.to_csv(outputdir + 'PS_ClassLabels_Motor.txt')
-                try:
-                    h5f.create_dataset('logic',data=psmat_logic)
-                    h5f.create_dataset('sensory',data=psmat_sensory)
-                    h5f.create_dataset('motor',data=psmat_motor)
-                except:
-                    del h5f['logic'], h5f['sensory'], h5f['motor'] 
-                h5f.close()
 
             # exit if practice==False
             if not practice:
