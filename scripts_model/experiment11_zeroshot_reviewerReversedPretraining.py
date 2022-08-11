@@ -396,19 +396,15 @@ def run(args):
 
             if savePS:
                 h5f = h5py.File(outputdir + save_model + '_simData' + str(sim) + 'psMatrices.h5','a')
+                df = pd.DataFrame(logic_classes); df.to_csv(outputdir + 'PS_ClassLabels_Logic.txt')
+                df = pd.DataFrame(sensory_classes); df.to_csv(outputdir + 'PS_ClassLabels_Sensory.txt')
+                df = pd.DataFrame(motor_classes); df.to_csv(outputdir + 'PS_ClassLabels_Motor.txt')
                 try:
                     h5f.create_dataset('logic',data=psmat_logic)
                     h5f.create_dataset('sensory',data=psmat_sensory)
                     h5f.create_dataset('motor',data=psmat_motor)
-                    h5f.create_dataset('logic_classes',data=logic_classes)
-                    h5f.create_dataset('sensory_classes',data=sensory_classes)
-                    h5f.create_dataset('motor_classes',data=motor_classes)
-
                 except:
-                    del h5f['logic'], h5f['sensory'], h5f['motor'], h5f['logic_classes'], h5f['sensory_classes'], h5f['motor_classes']
-                    h5f.create_dataset('logic',data=psmat_logic)
-                    h5f.create_dataset('sensory',data=psmat_sensory)
-                    h5f.create_dataset('motor',data=psmat_motor)
+                    del h5f['logic'], h5f['sensory'], h5f['motor'] 
                 h5f.close()
 
             # exit if practice==False
